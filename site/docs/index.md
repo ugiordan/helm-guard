@@ -2,6 +2,10 @@
 
 Security scanner for Helm chart supply chain integrity.
 
+## Demo
+
+![Demo](images/demo.gif)
+
 helm-guard checks what no existing tool covers: dependency pinning, template injection via `tpl`, hook security, values trust chains, OLM subscription security, and chart provenance. Static analysis by default (no `helm` CLI dependency).
 
 ## 20 checks across 8 categories
