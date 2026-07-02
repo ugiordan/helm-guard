@@ -1,10 +1,13 @@
 """Tests for all 10 security checks (positive + negative)."""
 
+import re
+import tempfile
 from pathlib import Path
 
 from helm_guard.checks import run_checks
-from helm_guard.config import ScannerConfig
-from helm_guard.parser import parse_chart_dir
+from helm_guard.config import ScannerConfig, load_config
+from helm_guard.parser import parse_chart_dir, ChartInfo, TemplateFile
+from helm_guard.checks.injection import _TPL_RE
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -154,3 +157,65 @@ class TestConfig:
         findings = _run("test-chart", min_severity="HIGH")
         for f in findings:
             assert f["severity"] in ("HIGH", "CRITICAL")
+
+    def test_malformed_config_file_returns_defaults(self):
+        with tempfile.NamedTemporaryFile(suffix=".yaml", mode="w", delete=False) as f:
+            f.write("invalid: [yaml {{")
+            f.flush()
+            cfg = load_config(f.name)
+            assert cfg.min_severity == "LOW"
+            assert len(cfg.trusted_chart_repos) > 0
+
+
+class TestINJ001Regex:
+    """Verify the tpl regex only matches inside Go template delimiters."""
+
+    def test_matches_standard_tpl(self):
+        assert _TPL_RE.search("{{ tpl .Values.extraConfig . }}")
+
+    def test_matches_tpl_with_whitespace_control(self):
+        assert _TPL_RE.search("{{- tpl .Values.x . -}}")
+
+    def test_matches_tpl_no_space(self):
+        assert _TPL_RE.search("{{tpl .Values.x .}}")
+
+    def test_no_match_outside_delimiters(self):
+        assert not _TPL_RE.search("# This is a .tpl helper template")
+
+    def test_no_match_resource_name_tpl(self):
+        assert not _TPL_RE.search("name: my-tpl-config")
+
+    def test_no_match_template_function(self):
+        assert not _TPL_RE.search('{{ template "foo" . }}')
+
+    def test_no_match_go_template_comment(self):
+        assert not _TPL_RE.search("{{/* Use tpl if you need */}}")
+
+
+class TestINJ002QuotePipe:
+    """Verify chained pipe filters with quote are not flagged."""
+
+    def test_chained_default_then_quote_not_flagged(self):
+        chart = ChartInfo(
+            chart_yaml={},
+            values_yaml={},
+            values_schema=None,
+            chart_lock=None,
+            template_files=[
+                TemplateFile(
+                    path="templates/test.yaml",
+                    content=(
+                        "command:\n"
+                        "  - sh\n"
+                        "  - -c\n"
+                        '  - echo {{ .Values.config | default "" | quote }}\n'
+                    ),
+                ),
+            ],
+            has_prov=False,
+            chart_dir="/tmp/test",
+        )
+        config = ScannerConfig()
+        findings = run_checks(chart, config)
+        inj002 = [f for f in findings if f["rule_id"] == "HLM-INJ-002"]
+        assert len(inj002) == 0, "Chained quote should suppress INJ-002"

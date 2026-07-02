@@ -8,7 +8,7 @@ from helm_guard.checks._common import _finding, register_check
 from helm_guard.config import ScannerConfig
 from helm_guard.parser import ChartInfo
 
-_TPL_RE = re.compile(r"\btpl\b")
+_TPL_RE = re.compile(r"\{\{-?\s*tpl\b")
 
 # Shell context patterns: lines containing sh -c, bash -c, or script:
 _SHELL_CONTEXT_RE = re.compile(r"(sh\s+-c|bash\s+-c|/bin/sh\s+-c|/bin/bash\s+-c|\bscript:)")
@@ -22,8 +22,8 @@ _SHELL_FLAG_RE = re.compile(r"^\s*-\s+-c\s*$")
 # .Values reference
 _VALUES_RE = re.compile(r"\.Values\.[a-zA-Z0-9_.]+")
 
-# Piped to quote or squote
-_QUOTE_PIPE_RE = re.compile(r"\.Values\.[a-zA-Z0-9_.]+\s*\|\s*(quote|squote)")
+# Piped to quote or squote (possibly via chained filters like | default "" | quote)
+_QUOTE_PIPE_RE = re.compile(r"\.Values\.[a-zA-Z0-9_.]+.*\|\s*(quote|squote)")
 
 # name: field pattern
 _NAME_FIELD_RE = re.compile(r"^\s*name:")

@@ -77,7 +77,8 @@ def check_secrets_in_values(chart: ChartInfo, config: ScannerConfig) -> list[dic
             file_path=values_path,
             line=1,
             message=(
-                f"Key '{dotpath}' matches secret pattern and has non-empty default '{val[:20]}...'. "
+                f"Key '{dotpath}' matches secret pattern and has non-empty default "
+                f"'{val[:20]}{'...' if len(val) > 20 else ''}'. "
                 f"Use empty defaults and set via --set or external secrets."
             ),
             cwe="CWE-798",

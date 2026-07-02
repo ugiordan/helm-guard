@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from collections import Counter
 from datetime import datetime, timezone
 from typing import Any
@@ -55,6 +56,14 @@ _SARIF_LEVEL = {
 }
 
 
+def _relativize_uri(file_path: str, target: str) -> str:
+    """Convert absolute file paths to relative URIs for SARIF compliance."""
+    try:
+        return os.path.relpath(file_path, os.path.dirname(target))
+    except ValueError:
+        return file_path
+
+
 def format_sarif(findings: list[dict[str, Any]], target: str) -> str:
     rules_seen: dict[str, dict] = {}
     results = []
@@ -71,13 +80,14 @@ def format_sarif(findings: list[dict[str, Any]], target: str) -> str:
             if f.get("cwe"):
                 rules_seen[rule_id]["properties"]["cwe"] = f["cwe"]
 
+        artifact_uri = _relativize_uri(f["file"], target)
         result: dict[str, Any] = {
             "ruleId": rule_id,
             "level": _SARIF_LEVEL.get(f["severity"], "warning"),
             "message": {"text": f["message"]},
             "locations": [{
                 "physicalLocation": {
-                    "artifactLocation": {"uri": f["file"]},
+                    "artifactLocation": {"uri": artifact_uri},
                     "region": {
                         "startLine": f.get("line_start", 1),
                         "endLine": f.get("line_end", f.get("line_start", 1)),

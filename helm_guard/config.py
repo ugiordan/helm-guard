@@ -72,8 +72,14 @@ def load_config(config_path: str | Path | None = None) -> ScannerConfig:
         return ScannerConfig()
 
     yaml = YAML(typ="safe")
-    with open(path) as f:
-        data = yaml.load(f) or {}
+    try:
+        with open(path) as f:
+            data = yaml.load(f) or {}
+    except Exception:
+        return ScannerConfig()
+
+    if not isinstance(data, dict):
+        return ScannerConfig()
 
     kwargs: dict[str, Any] = {}
     field_names = [

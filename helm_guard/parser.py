@@ -67,6 +67,8 @@ def _find_template_files(chart_dir: Path) -> list[TemplateFile]:
     result = []
     for ext in ("*.yaml", "*.yml", "*.tpl"):
         for p in sorted(templates_dir.rglob(ext)):
+            if p.is_symlink():
+                continue
             try:
                 content = p.read_text(encoding="utf-8", errors="replace")
                 result.append(TemplateFile(path=str(p), content=content))

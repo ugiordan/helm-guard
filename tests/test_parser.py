@@ -1,5 +1,7 @@
 """Tests for the Helm chart parser."""
 
+import os
+import tempfile
 from pathlib import Path
 
 from helm_guard.parser import parse_chart_dir
@@ -37,3 +39,46 @@ class TestParser:
         assert chart.chart_yaml == {}
         assert chart.values_yaml == {}
         assert chart.template_files == []
+
+    def test_empty_chart_yaml(self):
+        with tempfile.TemporaryDirectory() as td:
+            (Path(td) / "Chart.yaml").write_text("")
+            chart = parse_chart_dir(td)
+            assert chart.chart_yaml == {}
+
+    def test_scalar_chart_yaml(self):
+        with tempfile.TemporaryDirectory() as td:
+            (Path(td) / "Chart.yaml").write_text("just a string")
+            chart = parse_chart_dir(td)
+            assert chart.chart_yaml == {}
+
+    def test_list_chart_yaml(self):
+        with tempfile.TemporaryDirectory() as td:
+            (Path(td) / "Chart.yaml").write_text("- item1\n- item2\n")
+            chart = parse_chart_dir(td)
+            assert chart.chart_yaml == {}
+
+    def test_malformed_yaml(self):
+        with tempfile.TemporaryDirectory() as td:
+            (Path(td) / "Chart.yaml").write_text("key: [invalid yaml {{")
+            chart = parse_chart_dir(td)
+            assert chart.chart_yaml == {}
+
+    def test_no_values_yaml(self):
+        with tempfile.TemporaryDirectory() as td:
+            (Path(td) / "Chart.yaml").write_text("apiVersion: v2\nname: test\n")
+            chart = parse_chart_dir(td)
+            assert chart.values_yaml == {}
+
+    def test_symlinks_in_templates_skipped(self):
+        with tempfile.TemporaryDirectory() as td:
+            (Path(td) / "Chart.yaml").write_text("apiVersion: v2\nname: test\n")
+            tdir = Path(td) / "templates"
+            tdir.mkdir()
+            (tdir / "real.yaml").write_text("apiVersion: v1\nkind: ConfigMap\n")
+            symlink = tdir / "evil.yaml"
+            symlink.symlink_to("/etc/hosts")
+            chart = parse_chart_dir(td)
+            template_names = [os.path.basename(t.path) for t in chart.template_files]
+            assert "real.yaml" in template_names
+            assert "evil.yaml" not in template_names
