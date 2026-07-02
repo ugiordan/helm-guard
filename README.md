@@ -12,7 +12,7 @@ Checks what no existing tool covers: dependency pinning, template injection via 
 
 Full documentation at [ugiordan.github.io/helm-guard](https://ugiordan.github.io/helm-guard/)
 
-## What it checks (20 checks, 8 categories)
+## What it checks (29 checks, 8 categories)
 
 | ID | Category | Severity | Description |
 |----|----------|----------|-------------|
@@ -20,17 +20,26 @@ Full documentation at [ugiordan.github.io/helm-guard](https://ugiordan.github.io
 | HLM-PIN-002 | Pinning | HIGH | Missing Chart.lock when dependencies exist |
 | HLM-PIN-003 | Pinning | MEDIUM | Mutable image tag in values.yaml |
 | HLM-PIN-004 | Pinning | MEDIUM | OLM subscription channel not version-pinned |
+| HLM-PIN-005 | Pinning | MEDIUM | Chart version not following SemVer |
 | HLM-INJ-001 | Injection | CRITICAL | `tpl` function usage (Go template RCE) |
 | HLM-INJ-002 | Injection | HIGH | `.Values` in shell context without `quote` |
 | HLM-INJ-003 | Injection | MEDIUM | `.Values` in `name:` without `trunc 63` |
+| HLM-INJ-004 | Injection | CRITICAL | `lookup` function in template (cluster data exfil) |
+| HLM-INJ-005 | Injection | HIGH | `env`/`expandenv` function (host env leak) |
+| HLM-INJ-006 | Injection | HIGH | `.Files.Get`/`.Files.Glob` with `.Values` path |
+| HLM-INJ-007 | Injection | MEDIUM | Hardcoded container registry in template |
 | HLM-TRUST-001 | Trust | HIGH | No values.schema.json |
 | HLM-TRUST-002 | Trust | HIGH | Secrets with non-empty defaults in values.yaml |
 | HLM-TRUST-003 | Trust | HIGH | Dependency from untrusted repository |
+| HLM-TRUST-004 | Trust | HIGH | `hostNetwork`/`hostPID` enabled in values defaults |
+| HLM-TRUST-005 | Trust | MEDIUM | HTTP URL in values.yaml (cleartext connection) |
+| HLM-TRUST-006 | Trust | MEDIUM | Permissive NetworkPolicy in templates |
 | HLM-HOOK-001 | Hooks | HIGH | Hook Job without security context reference |
 | HLM-HOOK-002 | Hooks | MEDIUM | Hook with before-hook-creation delete policy |
 | HLM-OLM-001 | OLM | HIGH | Automatic install plan without version pin |
 | HLM-OLM-002 | OLM | MEDIUM | Subscription using community catalog |
 | HLM-OLM-003 | OLM | MEDIUM | Operator in privileged namespace |
+| HLM-OLM-004 | OLM | HIGH | Automatic approval with unstable channel |
 | HLM-PROV-001 | Provenance | INFO | Chart not signed (disabled by default) |
 | HLM-NS-001 | Namespace | HIGH | Resource in privileged namespace (render mode) |
 | HLM-NS-002 | Namespace | MEDIUM | Release namespace without schema restriction |

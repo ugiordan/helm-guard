@@ -161,6 +161,8 @@ _LOOKUP_RE = re.compile(r"\{\{-?\s*.*\blookup\b")
 _ENV_RE = re.compile(r"\{\{-?\s*.*\b(?:env|expandenv)\b")
 _FILES_VALUES_RE = re.compile(r"\.Files\.(?:Get|Glob)\s+.*\.Values")
 _HARDCODED_IMAGE_RE = re.compile(r"image:\s*[\"']?([a-zA-Z0-9][\w.-]*\.[a-zA-Z]{2,}/\S+)")
+# Go template comment: {{/* ... */}} or {{- /* ... */ -}}
+_GO_COMMENT_RE = re.compile(r"\{\{-?\s*/\*")
 
 
 @register_check
@@ -169,7 +171,7 @@ def check_inj_004(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
     findings = []
     for tmpl in chart.template_files:
         for i, line in enumerate(tmpl.content.splitlines(), 1):
-            if _LOOKUP_RE.search(line):
+            if _LOOKUP_RE.search(line) and not _GO_COMMENT_RE.search(line):
                 findings.append(_finding(
                     "HLM-INJ-004", "CRITICAL", "lookup function in template",
                     chart.chart_dir, tmpl.path, i,
@@ -188,7 +190,7 @@ def check_inj_005(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
     findings = []
     for tmpl in chart.template_files:
         for i, line in enumerate(tmpl.content.splitlines(), 1):
-            if _ENV_RE.search(line):
+            if _ENV_RE.search(line) and not _GO_COMMENT_RE.search(line):
                 findings.append(_finding(
                     "HLM-INJ-005", "HIGH", "env/expandenv function in template",
                     chart.chart_dir, tmpl.path, i,

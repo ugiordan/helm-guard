@@ -1,6 +1,6 @@
 # Rules Reference
 
-helm-guard implements 20 checks across 8 categories. Each check operates at a specific parser tier.
+helm-guard implements 29 checks across 8 categories. Each check operates at a specific parser tier.
 
 ## Parser tiers
 
@@ -46,6 +46,14 @@ helm-guard implements 20 checks across 8 categories. Each check operates at a sp
 - **Detects**: OLM channel like `stable`, `fast`, `alpha` without version suffix
 - **Remediation**: Use versioned channels (e.g., `stable-v1.3`)
 
+### HLM-PIN-005: Chart version not following SemVer
+
+- **Severity**: MEDIUM
+- **CWE**: CWE-1104
+- **Tier**: 1
+- **Detects**: Chart.yaml `version` field missing or not following strict SemVer format (`MAJOR.MINOR.PATCH`)
+- **Remediation**: Use SemVer format (e.g., `1.2.3`)
+
 ---
 
 ## Injection (HLM-INJ)
@@ -74,6 +82,38 @@ helm-guard implements 20 checks across 8 categories. Each check operates at a sp
 - **Detects**: `.Values.*` in lines containing `name:` without `trunc 63`
 - **Remediation**: Use `{{ .Values.name | trunc 63 | trimSuffix "-" }}`
 
+### HLM-INJ-004: lookup function in template
+
+- **Severity**: CRITICAL
+- **CWE**: CWE-94
+- **Tier**: 2
+- **Detects**: Any `lookup` function call inside `{{ }}` delimiters. The `lookup` function queries the live Kubernetes API during rendering, enabling exfiltration of cluster secrets and resources.
+- **Remediation**: Remove lookup calls. Use known resource references instead of dynamic cluster queries.
+
+### HLM-INJ-005: env/expandenv function in template
+
+- **Severity**: HIGH
+- **CWE**: CWE-200
+- **Tier**: 2
+- **Detects**: `env` or `expandenv` function calls inside `{{ }}` delimiters. These leak host environment variables (CI/CD secrets, tokens, credentials) into rendered manifests.
+- **Remediation**: Remove env/expandenv calls. Pass values explicitly via values.yaml.
+
+### HLM-INJ-006: .Files access with user-controlled path
+
+- **Severity**: HIGH
+- **CWE**: CWE-22
+- **Tier**: 2
+- **Detects**: `.Files.Get` or `.Files.Glob` calls where the path argument is derived from `.Values`. An attacker can craft values to read arbitrary files from the chart directory.
+- **Remediation**: Hardcode file paths in .Files.Get calls. Do not use .Values for file path construction.
+
+### HLM-INJ-007: Hardcoded container registry in template
+
+- **Severity**: MEDIUM
+- **CWE**: CWE-829
+- **Tier**: 2
+- **Detects**: Template files with hardcoded `image:` references (e.g., `image: docker.io/nginx:1.25`) that bypass `values.yaml` configuration. Skips lines with `{{ }}` expressions or comments.
+- **Remediation**: Use `{{ .Values.image.repository }}:{{ .Values.image.tag }}` pattern to allow registry redirection.
+
 ---
 
 ## Trust (HLM-TRUST)
@@ -101,6 +141,30 @@ helm-guard implements 20 checks across 8 categories. Each check operates at a sp
 - **Tier**: 1
 - **Detects**: `dependencies[].repository` not in trusted list. Checks both direct and transitive dependencies.
 - **Remediation**: Use charts from trusted repos
+
+### HLM-TRUST-004: hostNetwork/hostPID enabled in values defaults
+
+- **Severity**: HIGH
+- **CWE**: CWE-250
+- **Tier**: 1
+- **Detects**: `hostNetwork: true` or `hostPID: true` anywhere in values.yaml (recursive search). These give pods access to the host network/PID namespace, enabling container escape and network sniffing.
+- **Remediation**: Set `hostNetwork: false` and `hostPID: false` as defaults. Users can override when needed.
+
+### HLM-TRUST-005: HTTP URL in values.yaml (cleartext connection)
+
+- **Severity**: MEDIUM
+- **CWE**: CWE-319
+- **Tier**: 1
+- **Detects**: String values starting with `http://` (excluding localhost and 127.0.0.1). Data transmitted over HTTP is visible to network observers.
+- **Remediation**: Use HTTPS URLs for all external endpoints.
+
+### HLM-TRUST-006: Permissive NetworkPolicy in templates
+
+- **Severity**: MEDIUM
+- **CWE**: CWE-284
+- **Tier**: 2
+- **Detects**: Templates containing a NetworkPolicy resource with empty `ingress:`, `egress:`, or `spec: {}` blocks. Empty rules allow all traffic.
+- **Remediation**: Define explicit ingress/egress rules. Avoid empty spec.
 
 ---
 
@@ -152,6 +216,14 @@ helm-guard implements 20 checks across 8 categories. Each check operates at a sp
 - **Tier**: 1 + 2
 - **Detects**: Operator namespace in configurable `privileged_namespaces` list
 - **Remediation**: Use dedicated namespace
+
+### HLM-OLM-004: Automatic approval with unstable channel
+
+- **Severity**: HIGH
+- **CWE**: CWE-829
+- **Tier**: 1
+- **Detects**: OLM subscription with `installPlanApproval: Automatic` combined with an unstable channel (`alpha`, `beta`, `preview`, `dev`, `nightly`, `canary`). Unstable channels can push breaking or vulnerable operator versions automatically.
+- **Remediation**: Use Manual approval for unstable channels, or switch to a stable channel.
 
 ---
 
