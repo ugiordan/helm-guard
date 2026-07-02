@@ -19,3 +19,14 @@ anotherService:
   image:
     repository: gcr.io/myproject/svc
     tag: v2.0.0
+
+# TRUST-004
+hostNetwork: true
+
+# TRUST-005
+apiEndpoint: http://external-api.example.com/v1
+
+# OLM-004
+unstable-operator:
+  installPlanApproval: Automatic
+  channel: alpha

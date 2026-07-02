@@ -189,3 +189,41 @@ def check_olm_channel_not_pinned(chart: ChartInfo, config: ScannerConfig) -> lis
                 remediation="Use versioned channels (e.g., stable-v1.3 instead of stable)",
             ))
     return findings
+
+
+_SEMVER_STRICT_RE = re.compile(r"^\d+\.\d+\.\d+(-[\w.]+)?(\+[\w.]+)?$")
+
+
+@register_check
+def check_pin_005(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
+    """HLM-PIN-005: Chart version not following SemVer."""
+    if not chart.chart_yaml:
+        return []
+    version = str(chart.chart_yaml.get("version", ""))
+    chart_yaml_path = os.path.join(chart.chart_dir, "Chart.yaml")
+    if not version:
+        return [_finding(
+            rule_id="HLM-PIN-005",
+            severity="MEDIUM",
+            title="Missing chart version",
+            chart_dir=chart.chart_dir,
+            file_path=chart_yaml_path,
+            line=0,
+            message="Chart.yaml has no version field.",
+            cwe="CWE-1104",
+            remediation="Add a version field following SemVer (e.g., 1.0.0).",
+        )]
+    if not _SEMVER_STRICT_RE.match(version):
+        return [_finding(
+            rule_id="HLM-PIN-005",
+            severity="MEDIUM",
+            title="Chart version not following SemVer",
+            chart_dir=chart.chart_dir,
+            file_path=chart_yaml_path,
+            line=0,
+            message=f"Chart version '{version}' does not follow SemVer format.",
+            cwe="CWE-1104",
+            remediation="Use SemVer format: MAJOR.MINOR.PATCH (e.g., 1.2.3).",
+            extra={"version": version},
+        )]
+    return []

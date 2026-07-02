@@ -1,0 +1,27 @@
+# This template has security issues for testing
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.name }}
+data:
+  # lookup function (INJ-004)
+  secret: {{ lookup "v1" "Secret" .Release.Namespace "my-secret" }}
+
+  # env function (INJ-005)
+  home: {{ env "HOME" }}
+
+  # Files.Get with Values (INJ-006)
+  config: {{ .Files.Get .Values.configFile }}
+
+  # Hardcoded image (INJ-007)
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hardcoded-deploy
+spec:
+  template:
+    spec:
+      containers:
+      - name: app
+        image: docker.io/nginx:1.25

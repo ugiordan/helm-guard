@@ -155,3 +155,91 @@ def check_values_in_name_without_trunc(chart: ChartInfo, config: ScannerConfig) 
                 remediation='Use {{ .Values.name | trunc 63 | trimSuffix "-" }}',
             ))
     return findings
+
+
+_LOOKUP_RE = re.compile(r"\{\{-?\s*.*\blookup\b")
+_ENV_RE = re.compile(r"\{\{-?\s*.*\b(?:env|expandenv)\b")
+_FILES_VALUES_RE = re.compile(r"\.Files\.(?:Get|Glob)\s+.*\.Values")
+_HARDCODED_IMAGE_RE = re.compile(r"image:\s*[\"']?([a-zA-Z0-9][\w.-]*\.[a-zA-Z]{2,}/\S+)")
+
+
+@register_check
+def check_inj_004(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
+    """HLM-INJ-004: lookup function in templates."""
+    findings = []
+    for tmpl in chart.template_files:
+        for i, line in enumerate(tmpl.content.splitlines(), 1):
+            if _LOOKUP_RE.search(line):
+                findings.append(_finding(
+                    "HLM-INJ-004", "CRITICAL", "lookup function in template",
+                    chart.chart_dir, tmpl.path, i,
+                    "Template uses the lookup function which queries the live cluster "
+                    "API during rendering. An attacker who controls chart values can "
+                    "exfiltrate cluster secrets and resources.",
+                    cwe="CWE-94",
+                    remediation="Remove lookup calls. Use known resource references instead of dynamic cluster queries.",
+                ))
+    return findings
+
+
+@register_check
+def check_inj_005(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
+    """HLM-INJ-005: env or expandenv function in templates."""
+    findings = []
+    for tmpl in chart.template_files:
+        for i, line in enumerate(tmpl.content.splitlines(), 1):
+            if _ENV_RE.search(line):
+                findings.append(_finding(
+                    "HLM-INJ-005", "HIGH", "env/expandenv function in template",
+                    chart.chart_dir, tmpl.path, i,
+                    "Template uses env/expandenv which leaks host environment "
+                    "variables into rendered manifests. CI/CD secrets, tokens, "
+                    "and credentials may be exposed.",
+                    cwe="CWE-200",
+                    remediation="Remove env/expandenv calls. Pass values explicitly via values.yaml.",
+                ))
+    return findings
+
+
+@register_check
+def check_inj_006(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
+    """HLM-INJ-006: .Files.Get or .Files.Glob with Values input."""
+    findings = []
+    for tmpl in chart.template_files:
+        for i, line in enumerate(tmpl.content.splitlines(), 1):
+            if _FILES_VALUES_RE.search(line):
+                findings.append(_finding(
+                    "HLM-INJ-006", "HIGH", ".Files access with user-controlled path",
+                    chart.chart_dir, tmpl.path, i,
+                    "Template reads files using a path derived from .Values. "
+                    "An attacker can craft values to read arbitrary files from "
+                    "the chart directory.",
+                    cwe="CWE-22",
+                    remediation="Hardcode file paths in .Files.Get calls. Do not use .Values for file path construction.",
+                ))
+    return findings
+
+
+@register_check
+def check_inj_007(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
+    """HLM-INJ-007: Hardcoded container registry in template."""
+    findings = []
+    for tmpl in chart.template_files:
+        for i, line in enumerate(tmpl.content.splitlines(), 1):
+            stripped = line.strip()
+            if stripped.startswith("#"):
+                continue
+            match = _HARDCODED_IMAGE_RE.search(stripped)
+            if match and ".Values" not in stripped and "{{" not in stripped:
+                image = match.group(1).rstrip("\"'")
+                findings.append(_finding(
+                    "HLM-INJ-007", "MEDIUM", "Hardcoded container registry in template",
+                    chart.chart_dir, tmpl.path, i,
+                    f"Template hardcodes image '{image}' instead of using .Values. "
+                    "This bypasses the values.yaml image configuration, preventing "
+                    "users from redirecting to trusted registries.",
+                    cwe="CWE-829",
+                    remediation="Use {{ .Values.image.repository }}:{{ .Values.image.tag }} pattern.",
+                    extra={"image": image},
+                ))
+    return findings

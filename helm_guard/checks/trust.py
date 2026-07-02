@@ -246,3 +246,84 @@ def check_untrusted_dependency_repo(chart: ChartInfo, config: ScannerConfig) -> 
                     ))
 
     return findings
+
+
+@register_check
+def check_trust_004(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
+    """HLM-TRUST-004: hostNetwork or hostPID enabled in values defaults."""
+    findings = []
+
+    def _search(data: Any, path: str = "") -> None:
+        if isinstance(data, dict):
+            for k, v in data.items():
+                current = f"{path}.{k}" if path else k
+                if k in ("hostNetwork", "hostPID") and v is True:
+                    findings.append(_finding(
+                        "HLM-TRUST-004", "HIGH", f"{k} enabled in values defaults",
+                        chart.chart_dir, os.path.join(chart.chart_dir, "values.yaml"), 0,
+                        f"values.yaml has {current}: true by default. This gives pods "
+                        "access to the host network/PID namespace, enabling container "
+                        "escape and network sniffing.",
+                        cwe="CWE-250",
+                        remediation=f"Set {current}: false as the default. Users can override when needed.",
+                        extra={"field": current},
+                    ))
+                _search(v, current)
+        elif isinstance(data, list):
+            for i, item in enumerate(data):
+                _search(item, f"{path}[{i}]")
+
+    if chart.values_yaml:
+        _search(chart.values_yaml)
+    return findings
+
+
+@register_check
+def check_trust_005(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
+    """HLM-TRUST-005: HTTP URL in values.yaml (cleartext connection)."""
+    findings = []
+
+    def _search(data: Any, path: str = "") -> None:
+        if isinstance(data, str) and data.startswith("http://") and "localhost" not in data and "127.0.0.1" not in data:
+            findings.append(_finding(
+                "HLM-TRUST-005", "MEDIUM", "HTTP URL in values (cleartext)",
+                chart.chart_dir, os.path.join(chart.chart_dir, "values.yaml"), 0,
+                f"values.yaml field '{path}' uses HTTP ({data[:60]}). "
+                "Data transmitted over HTTP is visible to network observers.",
+                cwe="CWE-319",
+                remediation="Use HTTPS URLs for all external endpoints.",
+                extra={"field": path, "url": data[:100]},
+            ))
+        elif isinstance(data, dict):
+            for k, v in data.items():
+                _search(v, f"{path}.{k}" if path else k)
+        elif isinstance(data, list):
+            for i, item in enumerate(data):
+                _search(item, f"{path}[{i}]")
+
+    if chart.values_yaml:
+        _search(chart.values_yaml)
+    return findings
+
+
+@register_check
+def check_trust_006(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
+    """HLM-TRUST-006: Permissive NetworkPolicy in templates."""
+    findings = []
+    for tmpl in chart.template_files:
+        content = tmpl.content
+        if "NetworkPolicy" not in content:
+            continue
+        for i, line in enumerate(content.splitlines(), 1):
+            stripped = line.strip()
+            if stripped in ("ingress:", "egress:") or "spec: {}" in stripped:
+                findings.append(_finding(
+                    "HLM-TRUST-006", "MEDIUM", "Permissive NetworkPolicy in template",
+                    chart.chart_dir, tmpl.path, i,
+                    "Template contains a NetworkPolicy with a permissive spec. "
+                    "Empty ingress/egress rules allow all traffic.",
+                    cwe="CWE-284",
+                    remediation="Define explicit ingress/egress rules. Avoid empty spec.",
+                ))
+                break
+    return findings

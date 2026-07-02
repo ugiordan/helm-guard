@@ -193,3 +193,42 @@ def check_operator_privileged_namespace(chart: ChartInfo, config: ScannerConfig)
                         remediation="Use a dedicated namespace for operators",
                     ))
     return findings
+
+
+@register_check
+def check_olm_004(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
+    """HLM-OLM-004: Automatic approval with unstable channel."""
+    if not chart.values_yaml:
+        return []
+    findings = []
+    unstable = {"alpha", "beta", "preview", "dev", "nightly", "canary"}
+
+    def _search(data: Any, path: str = "") -> None:
+        if isinstance(data, dict):
+            approval = str(data.get("installPlanApproval", "")).lower()
+            channel = str(data.get("channel", "")).lower()
+            if approval == "automatic" and any(u in channel for u in unstable):
+                findings.append(_finding(
+                    rule_id="HLM-OLM-004",
+                    severity="HIGH",
+                    title="Automatic approval with unstable channel",
+                    chart_dir=chart.chart_dir,
+                    file_path=os.path.join(chart.chart_dir, "values.yaml"),
+                    line=0,
+                    message=(
+                        f"OLM subscription at '{path}' has Automatic approval on "
+                        f"unstable channel '{data.get('channel', '')}'. Unstable channels "
+                        "can push breaking or vulnerable operator versions automatically."
+                    ),
+                    cwe="CWE-829",
+                    remediation="Use Manual approval for unstable channels, or switch to a stable channel.",
+                    extra={"channel": data.get("channel", ""), "path": path},
+                ))
+            for k, v in data.items():
+                _search(v, f"{path}.{k}" if path else k)
+        elif isinstance(data, list):
+            for i, item in enumerate(data):
+                _search(item, f"{path}[{i}]")
+
+    _search(chart.values_yaml)
+    return findings
