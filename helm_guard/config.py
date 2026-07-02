@@ -81,17 +81,32 @@ def load_config(config_path: str | Path | None = None) -> ScannerConfig:
     if not isinstance(data, dict):
         return ScannerConfig()
 
-    kwargs: dict[str, Any] = {}
-    field_names = [
+    # Expected types for each config field.  Values that don't match
+    # their expected type are silently dropped (defaults are used instead)
+    # to avoid confusing runtime errors from bad config files.
+    _list_fields = {
         "trusted_chart_repos",
         "trusted_olm_sources",
         "skip_checks",
-        "min_severity",
         "secret_key_patterns",
         "privileged_namespaces",
-    ]
-    for name in field_names:
-        if name in data:
-            kwargs[name] = data[name]
+    }
+    _str_fields = {"min_severity"}
+
+    kwargs: dict[str, Any] = {}
+    for name in _list_fields | _str_fields:
+        if name not in data:
+            continue
+        val = data[name]
+        if name in _list_fields:
+            if not isinstance(val, list):
+                continue  # wrong type, skip
+            # Ensure all items are strings
+            if not all(isinstance(item, str) for item in val):
+                continue
+        elif name in _str_fields:
+            if not isinstance(val, str):
+                continue
+        kwargs[name] = val
 
     return ScannerConfig(**kwargs)

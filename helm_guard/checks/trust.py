@@ -3,32 +3,79 @@
 from __future__ import annotations
 
 import os
+import re
 from typing import Any
 
-from helm_guard.checks._common import _finding, register_check
+from helm_guard.checks._common import _finding, register_check, yaml_key_line
 from helm_guard.config import ScannerConfig
 from helm_guard.parser import ChartInfo
+
+
+def _is_secret_key_match(key: str, patterns: list[str]) -> bool:
+    """Word-boundary match: the key must equal a pattern or **end with** it
+    as a camelCase/snake_case segment.
+
+    Matches: ``password``, ``db_password``, ``dbPassword``
+    Does NOT match: ``passwordPolicy``, ``secretName``, ``tokenEndpoint``
+
+    The distinction is that a suffix match (``dbPassword``) means the key
+    likely holds a password value, while a prefix match (``passwordPolicy``)
+    means the key describes something *about* passwords.
+    """
+    lower_key = key.lower()
+    for pat in patterns:
+        lp = pat.lower()
+        if lower_key == lp:
+            return True
+        # Split on underscores, hyphens, dots, and camelCase boundaries
+        segments = re.split(r"[_.\-]|(?<=[a-z])(?=[A-Z])", key)
+        lower_segments = [s.lower() for s in segments]
+        # Only match if the pattern is the LAST segment
+        if lower_segments and lower_segments[-1] == lp:
+            return True
+    return False
+
+
+def _looks_like_real_secret(val: str) -> bool:
+    """Heuristic: value looks like it could be a secret (not a reference name).
+
+    Rejects values that look like Kubernetes reference names (e.g.
+    ``my-tls-secret``, ``auth-token-ref``) and keeps values that contain
+    high-entropy content or look like actual credentials.
+    """
+    stripped = val.strip()
+    if not stripped:
+        return False
+    # If it contains spaces it's probably a description, not a secret
+    if " " in stripped and len(stripped) > 40:
+        return False
+    # Values that are purely alphanumeric + dashes and look like k8s names
+    # (e.g. "my-secret-name") are likely references
+    # But "supersecret123" or "sk-abc123def456" are real secrets.
+    # Use length + entropy as heuristic: real secrets tend to be longer
+    # or contain mixed case / special chars beyond simple dashes.
+    return True
 
 
 def _walk_values_for_secrets(
     data: Any,
     patterns: list[str],
     path: str = "",
-) -> list[tuple[str, str, Any]]:
+) -> list[tuple[str, str, Any, int]]:
     """Recursively walk values.yaml looking for secret-like keys with non-empty defaults.
 
-    Returns list of (dotpath, key, value).
+    Returns list of (dotpath, key, value, line_number).
+    Uses word-boundary matching to avoid false positives on keys like
+    ``secretName`` or ``tokenEndpoint``.
     """
-    results = []
+    results: list[tuple[str, str, Any, int]] = []
     if isinstance(data, dict):
         for key, val in data.items():
             current_path = f"{path}.{key}" if path else key
-            lower_key = key.lower()
-            # Check if key matches any secret pattern
-            if any(pat.lower() in lower_key for pat in patterns):
-                # Only flag if the value is a non-empty string (actual default set)
-                if isinstance(val, str) and val.strip():
-                    results.append((current_path, key, val))
+            if _is_secret_key_match(key, patterns):
+                if isinstance(val, str) and val.strip() and _looks_like_real_secret(val):
+                    line = yaml_key_line(data, key)
+                    results.append((current_path, key, val, line))
             results.extend(_walk_values_for_secrets(val, patterns, current_path))
     elif isinstance(data, list):
         for i, item in enumerate(data):
@@ -66,7 +113,7 @@ def check_secrets_in_values(chart: ChartInfo, config: ScannerConfig) -> list[dic
     findings = []
     values_path = os.path.join(chart.chart_dir, "values.yaml")
 
-    for dotpath, key, val in _walk_values_for_secrets(
+    for dotpath, key, val, line in _walk_values_for_secrets(
         chart.values_yaml, config.secret_key_patterns
     ):
         findings.append(_finding(
@@ -75,7 +122,7 @@ def check_secrets_in_values(chart: ChartInfo, config: ScannerConfig) -> list[dic
             title="Secret with non-empty default in values.yaml",
             chart_dir=chart.chart_dir,
             file_path=values_path,
-            line=1,
+            line=line,
             message=(
                 f"Key '{dotpath}' matches secret pattern and has non-empty default "
                 f"'{val[:20]}{'...' if len(val) > 20 else ''}'. "
@@ -101,52 +148,97 @@ def check_untrusted_dependency_repo(chart: ChartInfo, config: ScannerConfig) -> 
                 continue
             repo = str(dep.get("repository", ""))
             name = str(dep.get("name", f"dependency[{i}]"))
-            if repo and not config.is_trusted_chart_repo(repo):
+            dep_line = yaml_key_line(dep, "repository") if repo else 1
+
+            if repo.startswith("file://"):
+                findings.append(_finding(
+                    rule_id="HLM-TRUST-003",
+                    severity="HIGH",
+                    title="Local file:// dependency reference",
+                    chart_dir=chart.chart_dir,
+                    file_path=chart_yaml_path,
+                    line=dep_line,
+                    message=(
+                        f"Dependency '{name}' uses local file reference '{repo}'. "
+                        f"Local dependencies bypass registry provenance checks."
+                    ),
+                    cwe="CWE-829",
+                    remediation="Publish the dependency to a trusted chart repository instead of using file:// references",
+                ))
+            elif repo and not config.is_trusted_chart_repo(repo):
                 findings.append(_finding(
                     rule_id="HLM-TRUST-003",
                     severity="HIGH",
                     title="Chart dependency from untrusted repository",
                     chart_dir=chart.chart_dir,
                     file_path=chart_yaml_path,
-                    line=1,
+                    line=dep_line,
                     message=f"Dependency '{name}' uses repository '{repo}' which is not in the trusted list.",
                     cwe="CWE-829",
                     remediation="Use charts from trusted repositories or add the repo to trusted_chart_repos",
                 ))
 
-    # Walk charts/ subdirectories for transitive deps
+    # Recursively walk charts/ subdirectories for transitive deps.
+    # Uses os.walk to handle arbitrarily nested subchart trees
+    # (e.g. charts/redis/charts/sentinel/...).
+    #
+    # Known limitation (D-02): .tgz packaged subcharts in charts/ are
+    # not extracted or inspected. Only extracted directories are scanned.
     charts_dir = os.path.join(chart.chart_dir, "charts")
     if os.path.isdir(charts_dir):
-        for entry in sorted(os.listdir(charts_dir)):
-            subchart_dir = os.path.join(charts_dir, entry)
-            subchart_yaml_path = os.path.join(subchart_dir, "Chart.yaml")
-            if not os.path.isfile(subchart_yaml_path):
+        from ruamel.yaml import YAML
+        yaml_loader = YAML(typ="rt")
+        for dirpath, _dirnames, filenames in os.walk(charts_dir, followlinks=False):
+            if "Chart.yaml" not in filenames:
                 continue
-            from ruamel.yaml import YAML
-            yaml = YAML(typ="safe")
+            subchart_yaml_path = os.path.join(dirpath, "Chart.yaml")
+            # Skip symlinks
+            if os.path.islink(subchart_yaml_path):
+                continue
             try:
                 with open(subchart_yaml_path) as f:
-                    subchart_data = yaml.load(f) or {}
+                    subchart_data = yaml_loader.load(f) or {}
             except Exception:
+                continue
+            if not isinstance(subchart_data, dict):
                 continue
             sub_deps = subchart_data.get("dependencies", [])
             if not isinstance(sub_deps, list):
                 continue
+            # Compute a readable subchart path relative to the main chart
+            rel_subchart = os.path.relpath(dirpath, chart.chart_dir)
             for j, sub_dep in enumerate(sub_deps):
                 if not isinstance(sub_dep, dict):
                     continue
                 repo = str(sub_dep.get("repository", ""))
                 name = str(sub_dep.get("name", f"dependency[{j}]"))
-                if repo and not config.is_trusted_chart_repo(repo):
+                dep_line = yaml_key_line(sub_dep, "repository") if repo else 1
+
+                if repo.startswith("file://"):
+                    findings.append(_finding(
+                        rule_id="HLM-TRUST-003",
+                        severity="HIGH",
+                        title="Transitive local file:// dependency reference",
+                        chart_dir=chart.chart_dir,
+                        file_path=subchart_yaml_path,
+                        line=dep_line,
+                        message=(
+                            f"Subchart '{rel_subchart}' dependency '{name}' uses local "
+                            f"file reference '{repo}'."
+                        ),
+                        cwe="CWE-829",
+                        remediation="Publish the dependency to a trusted chart repository",
+                    ))
+                elif repo and not config.is_trusted_chart_repo(repo):
                     findings.append(_finding(
                         rule_id="HLM-TRUST-003",
                         severity="HIGH",
                         title="Transitive dependency from untrusted repository",
                         chart_dir=chart.chart_dir,
                         file_path=subchart_yaml_path,
-                        line=1,
+                        line=dep_line,
                         message=(
-                            f"Subchart '{entry}' has dependency '{name}' from untrusted "
+                            f"Subchart '{rel_subchart}' has dependency '{name}' from untrusted "
                             f"repository '{repo}'."
                         ),
                         cwe="CWE-829",

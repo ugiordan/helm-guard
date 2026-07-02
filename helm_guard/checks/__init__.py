@@ -45,7 +45,7 @@ def run_checks(
 
     all_checks = get_all_checks()
     for check_fn in all_checks:
-        check_id = check_fn.__doc__.split(":")[0].strip() if check_fn.__doc__ else ""
+        check_id = getattr(check_fn, "check_id", "")
         if check_id and not config.should_run_check(check_id):
             continue
         for f in check_fn(chart, config):

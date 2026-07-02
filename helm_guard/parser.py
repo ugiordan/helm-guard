@@ -35,10 +35,15 @@ class ChartInfo:
 
 
 def _load_yaml(path: Path) -> dict[str, Any] | None:
-    """Load a YAML file, returning None if it does not exist or fails."""
+    """Load a YAML file using round-trip mode to preserve line numbers.
+
+    Returns a ``CommentedMap`` (dict subclass) whose values have ``.lc``
+    attributes with source line/column information.  Falls back to an
+    empty dict for non-dict documents and ``None`` for missing/broken files.
+    """
     if not path.exists() or not path.is_file():
         return None
-    yaml = YAML(typ="safe")
+    yaml = YAML(typ="rt")
     try:
         with open(path) as f:
             data = yaml.load(f)

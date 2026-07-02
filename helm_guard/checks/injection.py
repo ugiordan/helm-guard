@@ -11,6 +11,8 @@ from helm_guard.parser import ChartInfo
 _TPL_RE = re.compile(r"\{\{-?\s*tpl\b")
 
 # Shell context patterns: lines containing sh -c, bash -c, or script:
+# Known limitation (D-05): exec-form shell commands (e.g. ["/bin/sh", "-c", ...]),
+# python -c, eval in configmap data, and heredoc patterns (sh <<EOF) are not detected.
 _SHELL_CONTEXT_RE = re.compile(r"(sh\s+-c|bash\s+-c|/bin/sh\s+-c|/bin/bash\s+-c|\bscript:)")
 
 # Detect YAML list items that indicate we're entering a shell command block

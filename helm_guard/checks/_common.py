@@ -9,13 +9,34 @@ from helm_guard.parser import ChartInfo
 
 SEVERITY_ORDER = {"INFO": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
 
+
+def yaml_key_line(data: Any, key: str) -> int:
+    """Return the 1-based source line for *key* inside a ruamel.yaml CommentedMap.
+
+    Falls back to 1 when line info is unavailable (e.g. data loaded with
+    ``typ="safe"`` or the key is missing).
+    """
+    try:
+        # CommentedMap stores (line, col) in data.lc.key(key)
+        return data.lc.key(key)[0] + 1  # lc lines are 0-based
+    except Exception:
+        return 1
+
 CheckFn = Callable[[ChartInfo, ScannerConfig], list[dict]]
 
 _REGISTRY: list[CheckFn] = []
 
 
 def register_check(func: CheckFn) -> CheckFn:
-    """Decorator that registers a check function."""
+    """Decorator that registers a check function.
+
+    Extracts the check ID (e.g. "HLM-PIN-001") from the docstring at
+    registration time and caches it as ``func.check_id``.  If the
+    docstring is missing or malformed the attribute is set to ``""``.
+    """
+    doc = func.__doc__ or ""
+    colon_pos = doc.find(":")
+    func.check_id = doc[:colon_pos].strip() if colon_pos > 0 else ""  # type: ignore[attr-defined]
     _REGISTRY.append(func)
     return func
 
