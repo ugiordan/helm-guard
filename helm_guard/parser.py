@@ -8,7 +8,7 @@ Tier 3: Rendered output (opt-in via --render, not implemented in v1.0)
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
