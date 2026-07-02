@@ -1,0 +1,61 @@
+# Architecture Overview
+
+## Three-tier parser design
+
+Helm templates contain Go template directives (`{{ }}`, `{{- with }}`, `toYaml | nindent`) that make them invalid YAML. helm-guard uses a three-tier parser to handle this:
+
+### Tier 1: Structured YAML
+
+- **Files**: Chart.yaml, Chart.lock, values.yaml, values.schema.json
+- **Parser**: `ruamel.yaml` (round-trip mode for line number tracking)
+- **Reliability**: High, no false negatives
+- **Checks**: PIN-001..004, TRUST-001..003, OLM-001..003, PROV-001, DEP-001..002
+
+### Tier 2: Text/regex heuristics
+
+- **Files**: templates/*.yaml, templates/*.tpl
+- **Parser**: Line-by-line text scanning with regex
+- **Reliability**: May miss complex patterns (documented FN rate)
+- **Checks**: INJ-001..003, HOOK-001..002, NS-002
+- **Limitation**: Cannot determine resolved values (e.g., whether `securityContext.runAsNonRoot` is true after `toYaml`)
+
+### Tier 3: Rendered output
+
+- **Files**: Output of `helm template`
+- **Parser**: Standard YAML parsing of rendered K8s manifests
+- **Checks**: NS-001
+- **Availability**: Opt-in via `--render` flag
+- **Risk**: Go template functions execute during rendering, so untrusted charts could run arbitrary code
+
+Static mode (default) = Tier 1 + Tier 2. No external tool dependency.
+
+## Project structure
+
+```
+helm_guard/
+    parser.py           # Three-tier parser
+    checks/
+        __init__.py     # importlib auto-discovery, run_checks
+        _common.py      # @register_check, _finding, severity
+        pinning.py      # HLM-PIN-001..004
+        injection.py    # HLM-INJ-001..003
+        trust.py        # HLM-TRUST-001..003
+        hooks.py        # HLM-HOOK-001..002
+        olm.py          # HLM-OLM-001..003
+        provenance.py   # HLM-PROV-001
+        namespace.py    # HLM-NS-001..002
+        deps.py         # HLM-DEP-001..002
+    config.py           # Trust lists, configurable thresholds
+    formatter.py        # JSON, SARIF, text output
+    cli.py              # CLI entry point
+```
+
+## Check registration
+
+Checks are registered via the `@register_check` decorator in `_common.py`. The check ID is extracted from the function's docstring at registration time. The `checks/__init__.py` module auto-discovers all check modules using `importlib`.
+
+## Output formats
+
+- **JSON**: Structured report with findings, severity counts, and category breakdown
+- **SARIF**: Static Analysis Results Interchange Format for GitHub Code Scanning integration
+- **Text**: Human-readable terminal output with severity labels and remediation hints

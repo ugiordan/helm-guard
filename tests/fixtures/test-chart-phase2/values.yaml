@@ -1,0 +1,7 @@
+replicaCount: 1
+
+operator:
+  installPlanApproval: Automatic
+  source: community-operators
+  namespace: kube-system
+  channel: stable-v1.3

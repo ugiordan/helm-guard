@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "test-chart-phase3.fullname" . | trunc 63 | trimSuffix "-" }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ include "test-chart-phase3.name" . }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "test-chart-phase3.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "test-chart-phase3.name" . }}
+    spec:
+      containers:
+        - name: main
+          image: "{{ .Values.image.repository }}"
+          ports:
+            - containerPort: 8080

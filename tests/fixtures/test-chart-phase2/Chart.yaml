@@ -1,0 +1,4 @@
+apiVersion: v2
+name: test-chart-phase2
+version: 0.1.0
+description: A test chart for Phase 2 checks (hooks, OLM, provenance)

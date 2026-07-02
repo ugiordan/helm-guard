@@ -1,0 +1,11 @@
+replicaCount: 1
+
+redis:
+  securityContext:
+    runAsNonRoot: false
+  serviceAccount:
+    create: false
+
+postgresql:
+  rbac:
+    create: false

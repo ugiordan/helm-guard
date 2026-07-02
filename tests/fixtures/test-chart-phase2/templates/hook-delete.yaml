@@ -1,0 +1,17 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "test-chart.fullname" . }}-cleanup
+  annotations:
+    "helm.sh/hook": pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  template:
+    spec:
+      containers:
+        - name: cleanup
+          image: busybox:latest
+          command: ["sh", "-c", "echo 'cleanup'"]
+          securityContext:
+            runAsNonRoot: true
+      restartPolicy: Never

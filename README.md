@@ -2,9 +2,11 @@
 
 Security scanner for Helm chart supply chain integrity.
 
-Checks what no existing tool covers: dependency pinning, template injection via `tpl`, values trust chains, and chart provenance. Static analysis by default (no `helm` CLI dependency).
+Checks what no existing tool covers: dependency pinning, template injection via `tpl`, hook security, values trust chains, OLM subscription security, and chart provenance. Static analysis by default (no `helm` CLI dependency).
 
-## What it checks
+**[Documentation](https://ugiordan.github.io/helm-guard)**
+
+## What it checks (20 checks, 8 categories)
 
 | ID | Category | Severity | Description |
 |----|----------|----------|-------------|
@@ -18,6 +20,16 @@ Checks what no existing tool covers: dependency pinning, template injection via 
 | HLM-TRUST-001 | Trust | HIGH | No values.schema.json |
 | HLM-TRUST-002 | Trust | HIGH | Secrets with non-empty defaults in values.yaml |
 | HLM-TRUST-003 | Trust | HIGH | Dependency from untrusted repository |
+| HLM-HOOK-001 | Hooks | HIGH | Hook Job without security context reference |
+| HLM-HOOK-002 | Hooks | MEDIUM | Hook with before-hook-creation delete policy |
+| HLM-OLM-001 | OLM | HIGH | Automatic install plan without version pin |
+| HLM-OLM-002 | OLM | MEDIUM | Subscription using community catalog |
+| HLM-OLM-003 | OLM | MEDIUM | Operator in privileged namespace |
+| HLM-PROV-001 | Provenance | INFO | Chart not signed (disabled by default) |
+| HLM-NS-001 | Namespace | HIGH | Resource in privileged namespace (render mode) |
+| HLM-NS-002 | Namespace | MEDIUM | Release namespace without schema restriction |
+| HLM-DEP-001 | Dependencies | MEDIUM | Subchart values override of security fields |
+| HLM-DEP-002 | Dependencies | LOW | Dependency version conflict (Chart.yaml vs Chart.lock) |
 
 ## Install
 
@@ -106,9 +118,9 @@ privileged_namespaces:
 
 helm-guard uses a three-tier parser design because Helm templates contain Go template directives that make them invalid YAML:
 
-- **Tier 1 (Structured YAML)**: `Chart.yaml`, `values.yaml`, `Chart.lock`, `values.schema.json`. Parsed with `ruamel.yaml`. Used by PIN and TRUST checks.
-- **Tier 2 (Text/regex)**: Template files scanned as raw text with regex patterns. Used by INJ checks.
-- **Tier 3 (Rendered output)**: Planned for v1.2, requires `helm template` CLI. Not enabled by default.
+- **Tier 1 (Structured YAML)**: `Chart.yaml`, `values.yaml`, `Chart.lock`, `values.schema.json`. Parsed with `ruamel.yaml`. Used by PIN, TRUST, OLM, PROV, and DEP checks.
+- **Tier 2 (Text/regex)**: Template files scanned as raw text with regex patterns. Used by INJ, HOOK, and NS checks.
+- **Tier 3 (Rendered output)**: Opt-in via `--render`. Requires `helm template` CLI. Used by NS-001.
 
 ## Scope boundary
 
