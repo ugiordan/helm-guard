@@ -1,7 +1,5 @@
 """Tests for all 10 security checks (positive + negative)."""
 
-import os
-import re
 import tempfile
 from pathlib import Path
 
@@ -538,3 +536,36 @@ class TestConfigTypeValidation:
             cfg = load_config(f.name)
             assert cfg.trusted_chart_repos == ["https://example.com/charts"]
             assert cfg.min_severity == "HIGH"
+
+
+# --- Trusted repo prefix confusion ---
+
+
+class TestTrustedRepoPrefixSecurity:
+    """Trusted repo check must require path boundary, not bare prefix match."""
+
+    def test_exact_match_trusted(self):
+        cfg = ScannerConfig(trusted_chart_repos=["oci://quay.io/opendatahub/"])
+        assert cfg.is_trusted_chart_repo("oci://quay.io/opendatahub/")
+        assert cfg.is_trusted_chart_repo("oci://quay.io/opendatahub")
+
+    def test_subpath_trusted(self):
+        cfg = ScannerConfig(trusted_chart_repos=["oci://quay.io/opendatahub/"])
+        assert cfg.is_trusted_chart_repo("oci://quay.io/opendatahub/my-chart")
+
+    def test_prefix_confusion_rejected(self):
+        """A repo name that starts with the trusted prefix but is a different org must be rejected."""
+        cfg = ScannerConfig(trusted_chart_repos=["oci://quay.io/opendatahub/"])
+        assert not cfg.is_trusted_chart_repo("oci://quay.io/opendatahub-evil/malware")
+
+    def test_stable_prefix_confusion_rejected(self):
+        cfg = ScannerConfig(trusted_chart_repos=["https://charts.helm.sh/stable"])
+        assert not cfg.is_trusted_chart_repo("https://charts.helm.sh/stableevil")
+
+    def test_empty_repo_rejected(self):
+        cfg = ScannerConfig()
+        assert not cfg.is_trusted_chart_repo("")
+
+    def test_untrusted_repo_rejected(self):
+        cfg = ScannerConfig()
+        assert not cfg.is_trusted_chart_repo("https://evil.example.com/charts")

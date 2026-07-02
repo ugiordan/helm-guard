@@ -50,7 +50,11 @@ class ScannerConfig:
         normalized = repo_url.rstrip("/")
         for trusted in self.trusted_chart_repos:
             prefix = trusted.rstrip("/")
-            if normalized.startswith(prefix) or normalized == prefix:
+            if normalized == prefix:
+                return True
+            # Prefix match requires a path separator boundary to prevent
+            # "quay.io/opendatahub-evil" from matching trusted "quay.io/opendatahub/"
+            if normalized.startswith(prefix + "/"):
                 return True
         return False
 

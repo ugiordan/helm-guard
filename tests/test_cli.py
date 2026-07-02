@@ -61,7 +61,7 @@ def test_sarif_format():
 
     old_stdout = sys.stdout
     sys.stdout = buffer = io.StringIO()
-    code = main([FIXTURES + "/test-chart", "--format", "sarif"])
+    main([FIXTURES + "/test-chart", "--format", "sarif"])
     sys.stdout = old_stdout
     output = buffer.getvalue()
     sarif = json.loads(output)
@@ -86,7 +86,7 @@ def test_min_severity_high():
 
     old_stdout = sys.stdout
     sys.stdout = buffer = io.StringIO()
-    code = main([FIXTURES + "/test-chart", "--format", "json", "--min-severity", "HIGH"])
+    main([FIXTURES + "/test-chart", "--format", "json", "--min-severity", "HIGH"])
     sys.stdout = old_stdout
     output = buffer.getvalue()
     report = json.loads(output)
