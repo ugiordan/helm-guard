@@ -1,0 +1,9 @@
+replicaCount: 1
+
+image:
+  repository: quay.io/myorg/myapp@sha256:abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890
+  pullPolicy: IfNotPresent
+
+auth:
+  password: ""
+  apiKey: ""

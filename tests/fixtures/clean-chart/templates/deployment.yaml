@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "clean-chart.fullname" . | trunc 63 | trimSuffix "-" }}
+  labels:
+    app: {{ include "clean-chart.name" . }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "clean-chart.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "clean-chart.name" . }}
+    spec:
+      containers:
+        - name: main
+          image: "{{ .Values.image.repository }}"
+          ports:
+            - containerPort: 8080

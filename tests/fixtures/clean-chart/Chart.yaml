@@ -1,0 +1,4 @@
+apiVersion: v2
+name: clean-chart
+version: 1.0.0
+description: A chart that passes all helm-guard checks

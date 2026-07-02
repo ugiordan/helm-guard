@@ -1,0 +1,11 @@
+apiVersion: v2
+name: test-chart
+version: 0.1.0
+description: A test chart that triggers multiple helm-guard checks
+dependencies:
+  - name: redis
+    version: "~17.0"
+    repository: "https://charts.bitnami.com/bitnami"
+  - name: postgresql
+    version: ">=12.0.0"
+    repository: "https://evil-corp.example.com/charts"

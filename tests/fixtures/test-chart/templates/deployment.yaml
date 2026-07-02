@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.appName }}
+  labels:
+    app: {{ include "test-chart.name" . }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "test-chart.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "test-chart.name" . }}
+    spec:
+      containers:
+        - name: {{ .Values.containerName }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command:
+            - sh
+            - -c
+            - |
+              echo "Starting app with config {{ .Values.config.path }}"
+              /app/start
+          env:
+            - name: EXTRA_CONFIG
+              value: {{ tpl .Values.extraConfig . }}

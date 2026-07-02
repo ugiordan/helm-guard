@@ -1,0 +1,21 @@
+replicaCount: 1
+
+image:
+  repository: quay.io/myorg/myapp
+  tag: latest
+
+sidecar:
+  image: docker.io/library/nginx:1.25
+
+auth:
+  password: "supersecret123"
+  apiKey: "sk-abc123def456"
+
+olm:
+  channel: stable
+  source: community-operators
+
+anotherService:
+  image:
+    repository: gcr.io/myproject/svc
+    tag: v2.0.0

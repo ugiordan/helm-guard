@@ -1,0 +1,26 @@
+trusted_chart_repos:
+  - "https://charts.helm.sh/stable"
+  - "oci://quay.io/opendatahub/"
+  - "oci://registry.redhat.io/"
+
+trusted_olm_sources:
+  - "redhat-operators"
+  - "certified-operators"
+
+skip_checks:
+  - "HLM-PROV-001"  # fires on nearly every chart
+
+min_severity: "LOW"
+
+privileged_namespaces:
+  - "kube-system"
+  - "kube-public"
+  - "default"
+  - "openshift-operators"
+
+secret_key_patterns:
+  - "password"
+  - "token"
+  - "secret"
+  - "apiKey"
+  - "credentials"

@@ -1,0 +1,16 @@
+[project]
+name = "helm-guard"
+version = "1.0.0"
+description = "Security scanner for Helm chart supply chain integrity"
+requires-python = ">=3.10"
+dependencies = ["ruamel.yaml>=0.18"]
+
+[project.scripts]
+helm-guard = "helm_guard.cli:main"
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
