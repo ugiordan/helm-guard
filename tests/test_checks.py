@@ -223,6 +223,62 @@ class TestINJ002QuotePipe:
         assert len(inj002) == 0, "Chained quote should suppress INJ-002"
 
 
+class TestINJ002MultilineList:
+    """INJ-002 should detect .Values in YAML list shell patterns without block scalar."""
+
+    def test_multiline_list_no_block_scalar(self):
+        """Bare list items after '- -c' (no '|') should still be in shell context."""
+        chart = ChartInfo(
+            chart_yaml={},
+            values_yaml={},
+            values_schema=None,
+            chart_lock=None,
+            template_files=[
+                TemplateFile(
+                    path="templates/test.yaml",
+                    content=(
+                        "command:\n"
+                        "  - sh\n"
+                        "  - -c\n"
+                        "  - echo {{ .Values.config }}\n"
+                    ),
+                ),
+            ],
+            has_prov=False,
+            chart_dir="/tmp/test",
+        )
+        config = ScannerConfig()
+        findings = run_checks(chart, config)
+        inj002 = [f for f in findings if f["rule_id"] == "HLM-INJ-002"]
+        assert len(inj002) == 1, "Bare list shell pattern should be detected"
+
+    def test_multiline_list_with_quote_suppressed(self):
+        """Same pattern but with quote pipe should not be flagged."""
+        chart = ChartInfo(
+            chart_yaml={},
+            values_yaml={},
+            values_schema=None,
+            chart_lock=None,
+            template_files=[
+                TemplateFile(
+                    path="templates/test.yaml",
+                    content=(
+                        "command:\n"
+                        "  - /bin/bash\n"
+                        "  - -c\n"
+                        "  - echo {{ .Values.config | quote }}\n"
+                    ),
+                ),
+            ],
+            has_prov=False,
+            chart_dir="/tmp/test",
+        )
+        config = ScannerConfig()
+        findings = run_checks(chart, config)
+        inj002 = [f for f in findings if f["rule_id"] == "HLM-INJ-002"]
+        assert len(inj002) == 0, "Quoted value should suppress INJ-002"
+
+
 # --- D-01: Recursive subchart walk ---
 
 

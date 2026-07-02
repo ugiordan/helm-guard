@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from typing import Any
 
 from helm_guard.checks._common import _finding, register_check, yaml_key_line
@@ -140,7 +141,6 @@ def check_dependency_version_conflict(chart: ChartInfo, config: ScannerConfig) -
         # For ranges, this is expected (lock resolves the range),
         # so only compare when Chart.yaml has an exact version.
         # An exact version is one without range operators.
-        import re
         if re.search(r"[~^>=<|]", yaml_version):
             # Range spec in Chart.yaml. Lock resolved it. Check that lock
             # version is still within a reasonable range (simple: just

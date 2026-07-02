@@ -81,7 +81,9 @@ def check_values_in_shell_without_quote(chart: ChartInfo, config: ScannerConfig)
                 saw_shell_cmd = True
             elif saw_shell_cmd and _SHELL_FLAG_RE.match(stripped):
                 in_shell_block = True
-                shell_base_indent = current_indent
+                # Use indent - 1 so that sibling list items (same indent as
+                # "- -c") are still considered inside the shell block.
+                shell_base_indent = current_indent - 1
                 saw_shell_cmd = False
             elif saw_shell_cmd:
                 saw_shell_cmd = False
