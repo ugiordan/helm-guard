@@ -1,6 +1,6 @@
 # Rules Reference
 
-helm-guard implements 29 checks across 8 categories. Each check operates at a specific parser tier.
+helm-guard implements 37 checks across 10 categories. Each check operates at a specific parser tier.
 
 ## Parser tiers
 
@@ -114,6 +114,15 @@ helm-guard implements 29 checks across 8 categories. Each check operates at a sp
 - **Detects**: Template files with hardcoded `image:` references (e.g., `image: docker.io/nginx:1.25`) that bypass `values.yaml` configuration. Skips lines with `{{ }}` expressions or comments.
 - **Remediation**: Use `{{ .Values.image.repository }}:{{ .Values.image.tag }}` pattern to allow registry redirection.
 
+### HLM-INJ-008: getHostByName DNS exfiltration
+
+- **Severity**: HIGH
+- **CWE**: CWE-200
+- **Tier**: 2
+- **CVE**: CVE-2023-25165
+- **Detects**: `getHostByName` function calls inside `{{ }}` delimiters. This function performs DNS lookups during template rendering. CVE-2023-25165 demonstrated that an attacker can exfiltrate sensitive chart data (secrets, values) via DNS queries to attacker-controlled nameservers by encoding data in subdomain labels.
+- **Remediation**: Remove `getHostByName` calls. Use static hostnames or ConfigMap-based resolution.
+
 ---
 
 ## Trust (HLM-TRUST)
@@ -185,6 +194,14 @@ helm-guard implements 29 checks across 8 categories. Each check operates at a sp
 - **Tier**: 2
 - **Detects**: `helm.sh/hook-delete-policy: before-hook-creation`
 - **Remediation**: Use `hook-succeeded` or `hook-failed` delete policies
+
+### HLM-HOOK-003: Post-renderer executing external script
+
+- **Severity**: HIGH
+- **CWE**: CWE-94
+- **Tier**: 1
+- **Detects**: Chart `values.yaml` configures a post-renderer (keys: `postRenderer`, `post-renderer`, `postrender`) with a command or exec field. Post-renderers execute arbitrary code on rendered manifests before they are applied to the cluster, enabling supply chain attacks via malicious scripts.
+- **Remediation**: Audit post-renderer scripts. Pin to known-good versions. Prefer Kustomize-based post-rendering over arbitrary scripts.
 
 ---
 
@@ -265,6 +282,54 @@ helm-guard implements 29 checks across 8 categories. Each check operates at a sp
 
 ---
 
+## Security (HLM-SEC)
+
+### HLM-SEC-001: Path traversal in chart name
+
+- **Severity**: HIGH
+- **CWE**: CWE-22
+- **Tier**: 1
+- **CVE**: CVE-2024-25620, CVE-2026-35206
+- **Detects**: `Chart.yaml` `name` field containing path traversal sequences (`..`, `/`, `\`). CVE-2024-25620 and CVE-2026-35206 demonstrated that chart names with `../` can write files outside intended directories during chart archive extraction.
+- **Remediation**: Use a simple chart name without path separators or traversal sequences.
+
+### HLM-SEC-002: Chart.lock symlink arbitrary write
+
+- **Severity**: CRITICAL
+- **CWE**: CWE-59
+- **Tier**: 1
+- **CVE**: CVE-2025-53547 (CVSS 8.5)
+- **Detects**: `Chart.lock` is a symbolic link rather than a regular file. CVE-2025-53547 demonstrated that a symlinked Chart.lock enables arbitrary code execution when Helm writes dependency data through the symlink to the target file.
+- **Remediation**: Remove the symlink and create a regular Chart.lock file via `helm dependency build`.
+
+### HLM-SEC-003: valueFiles path traversal
+
+- **Severity**: HIGH
+- **CWE**: CWE-22
+- **Tier**: 2
+- **CVE**: CVE-2022-24348
+- **Detects**: Template files referencing `valueFiles` or `valuesFiles` with absolute paths or directory traversal (`..`). CVE-2022-24348 demonstrated this enables reading sensitive files from Argo CD reposerver, bypassing path validation via URI parsing confusion.
+- **Remediation**: Use relative paths within the chart directory only. Do not use absolute paths or `../` in valueFiles.
+
+### HLM-SEC-004: Plugin version path traversal
+
+- **Severity**: HIGH
+- **CWE**: CWE-22
+- **Tier**: 1
+- **CVE**: CVE-2026-35204 (CVSS 8.4)
+- **Detects**: `plugin.yaml` `version` field containing path traversal sequences (`..`, `/`). CVE-2026-35204 demonstrated this enables arbitrary filesystem writes during plugin installation.
+- **Remediation**: Use a clean SemVer version string without path separators.
+
+### HLM-SEC-005: ServiceAccount token automount not disabled
+
+- **Severity**: MEDIUM
+- **CWE**: CWE-269
+- **Tier**: 2
+- **Detects**: Templates creating a `ServiceAccount` resource without explicitly setting `automountServiceAccountToken: false`. VoidLink malware targets `/var/run/secrets/` tokens in 22% of cloud environments.
+- **Remediation**: Add `automountServiceAccountToken: false` to ServiceAccount specs.
+
+---
+
 ## Dependencies (HLM-DEP)
 
 ### HLM-DEP-001: Subchart values override of security fields
@@ -282,3 +347,11 @@ helm-guard implements 29 checks across 8 categories. Each check operates at a sp
 - **Tier**: 1
 - **Detects**: Chart.lock has different version than Chart.yaml for same dependency (exact version specs only)
 - **Remediation**: Run `helm dependency build` to refresh
+
+### HLM-DEP-003: Potential dependency name typosquat
+
+- **Severity**: HIGH
+- **CWE**: CWE-829
+- **Tier**: 1
+- **Detects**: Chart dependency names with edit distance <= 2 from common chart names (nginx, redis, postgresql, mysql, mongodb, kafka, elasticsearch, prometheus, grafana, cert-manager, etc.). This catches typosquatting attacks where a malicious chart uses a name like `ngnix` or `reddis` to trick users.
+- **Remediation**: Verify the dependency is the intended chart. Check the repository URL matches the official source.
