@@ -67,3 +67,47 @@ def check_hook_before_creation_delete(chart: ChartInfo, config: ScannerConfig) -
                     remediation="Use 'hook-succeeded' or 'hook-failed' delete policies instead",
                 ))
     return findings
+
+
+@register_check
+def check_hook_003(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
+    """HLM-HOOK-003: Post-renderer executing external script."""
+    findings = []
+    # Check values.yaml for postRenderer configuration
+    if chart.values_yaml:
+        def _search(data, path=""):
+            if isinstance(data, dict):
+                for k, v in data.items():
+                    current = f"{path}.{k}" if path else k
+                    if k.lower() in ("postrenderer", "post-renderer", "postrender"):
+                        if isinstance(v, dict):
+                            cmd = v.get("command", v.get("exec", ""))
+                            if cmd:
+                                findings.append(_finding(
+                                    "HLM-HOOK-003", "HIGH",
+                                    "Post-renderer executing external script",
+                                    chart.chart_dir, "values.yaml", 0,
+                                    f"Chart configures a post-renderer at '{current}' "
+                                    f"that executes '{cmd}'. Post-renderers run arbitrary "
+                                    f"code on rendered manifests before apply.",
+                                    cwe="CWE-94",
+                                    remediation="Audit post-renderer scripts. Pin to known-good versions.",
+                                    extra={"command": str(cmd), "path": current},
+                                ))
+                        elif isinstance(v, str) and v:
+                            findings.append(_finding(
+                                "HLM-HOOK-003", "HIGH",
+                                "Post-renderer executing external script",
+                                chart.chart_dir, "values.yaml", 0,
+                                f"Chart configures a post-renderer at '{current}': '{v}'. "
+                                f"Post-renderers run arbitrary code on rendered manifests.",
+                                cwe="CWE-94",
+                                remediation="Audit post-renderer scripts. Pin to known-good versions.",
+                                extra={"command": v, "path": current},
+                            ))
+                    _search(v, current)
+            elif isinstance(data, list):
+                for i, item in enumerate(data):
+                    _search(item, f"{path}[{i}]")
+        _search(chart.values_yaml)
+    return findings

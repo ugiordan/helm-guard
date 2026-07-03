@@ -245,3 +245,29 @@ def check_inj_007(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
                     extra={"image": image},
                 ))
     return findings
+
+
+_GETHOSTBYNAME_RE = re.compile(r"\{\{-?\s*.*\bgetHostByName\b")
+
+
+@register_check
+def check_inj_008(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
+    """HLM-INJ-008: getHostByName function in templates."""
+    findings = []
+    for tmpl in chart.template_files:
+        for i, line in enumerate(tmpl.content.splitlines(), 1):
+            if line.strip().startswith("#"):
+                continue
+            if _GO_COMMENT_RE.search(line):
+                continue
+            if _GETHOSTBYNAME_RE.search(line):
+                findings.append(_finding(
+                    "HLM-INJ-008", "HIGH", "getHostByName function in template",
+                    chart.chart_dir, tmpl.path, i,
+                    "Template uses getHostByName which performs DNS lookups during "
+                    "rendering. CVE-2023-25165 demonstrated this enables exfiltration "
+                    "of chart data via DNS queries to attacker-controlled servers.",
+                    cwe="CWE-200",
+                    remediation="Remove getHostByName calls. Use static hostnames or ConfigMap-based resolution.",
+                ))
+    return findings

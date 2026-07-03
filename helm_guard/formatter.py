@@ -21,6 +21,7 @@ def _category_from_rule(rule_id: str) -> str:
         "PROV": "provenance",
         "NS": "namespace",
         "DEP": "dependencies",
+        "SEC": "security",
     }.get(prefix, "unknown")
 
 

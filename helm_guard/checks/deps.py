@@ -166,3 +166,44 @@ def check_dependency_version_conflict(chart: ChartInfo, config: ScannerConfig) -
                 remediation="Run 'helm dependency build' to refresh Chart.lock",
             ))
     return findings
+
+
+_COMMON_CHART_NAMES = {
+    "nginx", "redis", "postgresql", "mysql", "mongodb", "kafka",
+    "elasticsearch", "prometheus", "grafana", "cert-manager",
+    "ingress-nginx", "metrics-server", "external-dns", "vault",
+    "consul", "traefik", "harbor", "minio", "rabbitmq",
+    "memcached", "mariadb", "cassandra", "etcd", "zookeeper",
+}
+
+
+@register_check
+def check_dep_003(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
+    """HLM-DEP-003: Chart dependency name potential typosquat."""
+    if not chart.chart_yaml:
+        return []
+    findings = []
+    deps = chart.chart_yaml.get("dependencies", [])
+    for dep in deps or []:
+        if not isinstance(dep, dict):
+            continue
+        name = str(dep.get("name", "")).lower()
+        if not name:
+            continue
+        # Check for common typosquatting patterns
+        for common in _COMMON_CHART_NAMES:
+            if name == common:
+                break
+            # Check edit distance of 1-2 (simple transposition, missing/extra char)
+            if len(name) == len(common) and sum(a != b for a, b in zip(name, common)) <= 2:
+                findings.append(_finding(
+                    "HLM-DEP-003", "HIGH", "Potential dependency name typosquat",
+                    chart.chart_dir, "Chart.yaml", 0,
+                    f"Chart dependency '{name}' is similar to common chart '{common}' "
+                    f"(edit distance <= 2). This could be a typosquatting attack.",
+                    cwe="CWE-829",
+                    remediation=f"Verify this is the intended dependency. Did you mean '{common}'?",
+                    extra={"dep_name": name, "similar_to": common},
+                ))
+                break
+    return findings
