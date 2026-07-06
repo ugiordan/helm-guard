@@ -71,6 +71,22 @@ class TestPinning:
         findings = _run("clean-chart")
         assert "HLM-PIN-004" not in _rule_ids(findings)
 
+    def test_pin_004_known_unversioned_case_insensitive(self):
+        """known_unversioned_channels skip should be case-insensitive like the regex."""
+        with tempfile.TemporaryDirectory() as td:
+            (Path(td) / "Chart.yaml").write_text(
+                "apiVersion: v2\nname: test\nversion: 1.0.0\n"
+            )
+            (Path(td) / "values.yaml").write_text(
+                "operator:\n"
+                "  channel: Stable\n"  # mixed case, should still be skipped
+            )
+            chart = parse_chart_dir(td)
+            config = ScannerConfig(known_unversioned_channels=["stable"])
+            findings = run_checks(chart, config)
+            pin004 = [f for f in findings if f["rule_id"] == "HLM-PIN-004"]
+            assert len(pin004) == 0, "Stable (mixed case) should be skipped as known unversioned"
+
 
 # --- Injection checks ---
 

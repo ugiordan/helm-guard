@@ -179,7 +179,8 @@ def check_olm_channel_not_pinned(chart: ChartInfo, config: ScannerConfig) -> lis
         stripped = channel_val.strip()
         if _OLM_UNPINNED_CHANNEL_RE.match(stripped):
             # Skip channels known to not offer versioned alternatives
-            if stripped in config.known_unversioned_channels:
+            # Case-insensitive to match _OLM_UNPINNED_CHANNEL_RE (re.IGNORECASE)
+            if stripped.lower() in {c.lower() for c in config.known_unversioned_channels}:
                 continue
             findings.append(_finding(
                 rule_id="HLM-PIN-004",

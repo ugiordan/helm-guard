@@ -5,7 +5,7 @@ from pathlib import Path
 
 from helm_guard.checks import run_checks
 from helm_guard.config import ScannerConfig
-from helm_guard.parser import ChartInfo, TemplateFile, parse_chart_dir
+from helm_guard.parser import parse_chart_dir
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
