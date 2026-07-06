@@ -6,27 +6,7 @@ Checks what no existing tool covers: dependency pinning, template injection via 
 
 ## Demo
 
-```console
-$ helm-guard charts/rhai-on-openshift-chart --format text
-
-Helm Chart Security Scan: charts/rhai-on-openshift-chart
-Found 3 issue(s)
-
-[LOW] HLM-INJ-004: lookup function in template
-  File: templates/definitions/_helpers.tpl:319
-  Template uses lookup which queries live cluster API during rendering
-  Fix: Consider alternatives. Use skipCrdCheck fallback if needed.
-
-[HIGH] HLM-OLM-001: Automatic install plan without version pin
-  File: values.yaml:23
-  installPlanApproval is Automatic without startingCSV version pin
-  Fix: Use Manual approval or pin to a specific CSV version
-
-[MEDIUM] HLM-PIN-004: OLM channel not version-pinned
-  File: values.yaml:59
-  Channel 'beta' without version suffix
-  Fix: Use versioned channels (e.g., stable-v1.3)
-```
+![helm-guard Demo](site/docs/images/demo.gif)
 
 ## Documentation
 
