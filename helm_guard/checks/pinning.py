@@ -176,7 +176,11 @@ def check_olm_channel_not_pinned(chart: ChartInfo, config: ScannerConfig) -> lis
     values_path = os.path.join(chart.chart_dir, "values.yaml")
 
     for dotpath, channel_val, line in _walk_values_for_channels(chart.values_yaml):
-        if _OLM_UNPINNED_CHANNEL_RE.match(channel_val.strip()):
+        stripped = channel_val.strip()
+        if _OLM_UNPINNED_CHANNEL_RE.match(stripped):
+            # Skip channels known to not offer versioned alternatives
+            if stripped in config.known_unversioned_channels:
+                continue
             findings.append(_finding(
                 rule_id="HLM-PIN-004",
                 severity="MEDIUM",

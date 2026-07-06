@@ -106,8 +106,14 @@ def check_community_catalog(chart: ChartInfo, config: ScannerConfig) -> list[dic
     values_path = os.path.join(chart.chart_dir, "values.yaml")
 
     # Tier 1: check values.yaml for source: community-operators
+    # Only flag when it's the effective default (top-level olm.source or first-level source),
+    # not when nested under operator-type-specific configs (those are opt-in alternatives)
     for dotpath, val, line in _walk_for_key(chart.values_yaml, "source"):
         if isinstance(val, str) and val.strip() == "community-operators":
+            # Skip deeply nested paths (operator-type-specific alternatives, not defaults)
+            depth = dotpath.count(".")
+            if depth > 2:
+                continue
             findings.append(_finding(
                 rule_id="HLM-OLM-002",
                 severity="MEDIUM",

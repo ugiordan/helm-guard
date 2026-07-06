@@ -158,7 +158,10 @@ def check_values_in_name_without_trunc(chart: ChartInfo, config: ScannerConfig) 
 
 
 _LOOKUP_RE = re.compile(r"\{\{-?\s*.*\blookup\b")
-_ENV_RE = re.compile(r"\{\{-?\s*.*\b(?:env|expandenv)\b")
+# Match sprig env/expandenv function calls, not "env" as a dict key or YAML key.
+# Sprig calls look like: {{ env "HOME" }} or {{ expandenv "$PATH" }}
+# False positive: dict "env" (list ...) where "env" is a string argument
+_ENV_RE = re.compile(r'\{\{-?\s*(?:env|expandenv)\s+["\'$]')
 _FILES_VALUES_RE = re.compile(r"\.Files\.(?:Get|Glob)\s+.*\.Values")
 _HARDCODED_IMAGE_RE = re.compile(r"image:\s*[\"']?([a-zA-Z0-9][\w.-]*\.[a-zA-Z]{2,}/\S+)")
 # Go template comment: {{/* ... */}} or {{- /* ... */ -}}
@@ -173,13 +176,17 @@ def check_inj_004(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
         for i, line in enumerate(tmpl.content.splitlines(), 1):
             if _LOOKUP_RE.search(line) and not _GO_COMMENT_RE.search(line):
                 findings.append(_finding(
-                    "HLM-INJ-004", "CRITICAL", "lookup function in template",
+                    "HLM-INJ-004", "LOW", "lookup function in template",
                     chart.chart_dir, tmpl.path, i,
                     "Template uses the lookup function which queries the live cluster "
-                    "API during rendering. An attacker who controls chart values can "
-                    "exfiltrate cluster secrets and resources.",
-                    cwe="CWE-94",
-                    remediation="Remove lookup calls. Use known resource references instead of dynamic cluster queries.",
+                    "API during rendering. This causes different behavior between "
+                    "helm template (returns empty) and helm install (queries cluster). "
+                    "On Helm < 3.2.0, CVE-2020-11013 allowed cluster access during "
+                    "dry-run. On modern Helm, this is a design concern: templates "
+                    "should produce consistent output regardless of cluster state.",
+                    cwe="CWE-200",
+                    remediation="Consider alternatives to lookup. If needed for CRD checks, "
+                    "document the usage and ensure skipCrdCheck is available as a fallback.",
                 ))
     return findings
 

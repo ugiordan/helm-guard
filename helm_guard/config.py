@@ -44,6 +44,11 @@ class ScannerConfig:
         "openshift-operators",
     ])
 
+    known_unversioned_channels: list[str] = field(default_factory=lambda: [
+        "stable",
+        "preview",
+    ])
+
     def is_trusted_chart_repo(self, repo_url: str) -> bool:
         if not repo_url:
             return False
@@ -94,6 +99,7 @@ def load_config(config_path: str | Path | None = None) -> ScannerConfig:
         "skip_checks",
         "secret_key_patterns",
         "privileged_namespaces",
+        "known_unversioned_channels",
     }
     _str_fields = {"min_severity"}
 
