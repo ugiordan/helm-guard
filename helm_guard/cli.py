@@ -19,6 +19,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "target",
+        nargs="?",
+        default=None,
         help="Path to a Helm chart directory",
     )
     parser.add_argument(
@@ -57,7 +59,30 @@ def main(argv: list[str] | None = None) -> int:
         help="Always exit 0 regardless of findings (for informational runs)",
     )
 
+    parser.add_argument(
+        "--explain",
+        default=None,
+        metavar="RULE_ID",
+        help="Show detailed information about a specific check rule",
+    )
+
     args = parser.parse_args(argv)
+
+    if args.explain:
+        from helm_guard.checks._common import get_all_checks
+        rule = args.explain.upper()
+        for check_fn in get_all_checks():
+            check_id = getattr(check_fn, 'check_id', '')
+            if check_id == rule:
+                doc = check_fn.__doc__ or ''
+                print(f"\n{check_id}: {doc.split(':', 1)[1].strip() if ':' in doc else doc}")
+                print(f"\nDocs: https://ugiordan.github.io/helm-guard/reference/rules/#{rule.lower()}")
+                return 0
+        print(f"Unknown rule: {rule}", file=sys.stderr)
+        return 2
+
+    if not args.target:
+        parser.error("the following arguments are required: target")
 
     config = load_config(args.config)
     if args.min_severity:

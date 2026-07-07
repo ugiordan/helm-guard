@@ -1,0 +1,9 @@
+- id: helm-guard
+  name: helm-guard
+  description: Scan Helm charts for supply chain security issues
+  entry: python -m helm_guard
+  language: python
+  pass_filenames: false
+  types: [yaml]
+  files: (Chart\.yaml|values\.yaml|templates/)
+  additional_dependencies: ['ruamel.yaml>=0.18']

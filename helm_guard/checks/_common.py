@@ -58,6 +58,7 @@ def _finding(
     remediation: str = "",
     extra: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    docs_url = f"https://ugiordan.github.io/helm-guard/reference/rules/#{rule_id.lower()}"
     result = {
         "rule_id": rule_id,
         "severity": severity,
@@ -69,6 +70,7 @@ def _finding(
         "chart_dir": chart_dir,
         "cwe": cwe,
         "remediation": remediation,
+        "docs_url": docs_url,
     }
     if extra:
         result.update(extra)
