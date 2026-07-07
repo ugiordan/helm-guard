@@ -1,43 +1,51 @@
 site_name: helm-guard
-site_description: Security scanner for Helm chart supply chain integrity
 site_url: https://ugiordan.github.io/helm-guard
 repo_url: https://github.com/ugiordan/helm-guard
 repo_name: ugiordan/helm-guard
 
+copyright: Copyright &copy; Ugo Giordano
+
 theme:
   name: material
+  language: en
+  icon:
+    repo: fontawesome/brands/github
+    logo: material/shield-lock
+  font:
+    text: Red Hat Text
+    code: Red Hat Mono
   palette:
     - scheme: default
-      primary: deep purple
-      accent: amber
-      toggle:
-        icon: material/brightness-7
-        name: Switch to dark mode
-    - scheme: slate
-      primary: deep purple
-      accent: amber
+      primary: black
       toggle:
         icon: material/brightness-4
+        name: Switch to dark mode
+    - scheme: slate
+      primary: black
+      toggle:
+        icon: material/brightness-7
         name: Switch to light mode
   features:
     - navigation.tabs
-    - navigation.sections
-    - navigation.expand
     - navigation.top
-    - content.code.copy
-    - content.tabs.link
-    - search.highlight
+    - navigation.indexes
+    - navigation.instant
+    - navigation.path
+    - navigation.sections
     - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - toc.follow
 
 plugins:
   - search
-  - glightbox
-
-extra_css:
-  - assets/css/extra.css
-
-extra_javascript:
-  - assets/js/diagram-zoom.js
+  - glightbox:
+      touchNavigation: true
+      loop: false
+      zoomable: true
 
 markdown_extensions:
   - admonition
@@ -47,30 +55,46 @@ markdown_extensions:
         - name: mermaid
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
-  - pymdownx.tabbed:
-      alternate_style: true
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.inlinehilite
-  - tables
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.tasklist:
+      custom_checkbox: true
   - attr_list
   - md_in_html
   - def_list
+  - tables
+  - toc:
+      permalink: true
+
+extra_css:
+  - assets/css/extra.css
+
+extra_javascript:
+  - assets/js/diagram-zoom.js
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/ugiordan/helm-guard
 
 nav:
   - Home: index.md
   - Getting Started:
     - Installation: getting-started/installation.md
-    - Quickstart: getting-started/quickstart.md
-  - Reference:
-    - Rules: reference/rules.md
-    - CLI: reference/cli.md
-  - Architecture:
-    - Overview: architecture/overview.md
+    - Quick Start: getting-started/quickstart.md
   - Guides:
     - Configuration: guides/configuration.md
+  - Reference:
+    - CLI Commands: reference/cli.md
+    - Detection Rules: reference/rules.md
+  - Architecture:
+    - Design Overview: architecture/overview.md
   - Contributing:
     - Development Setup: contributing/setup.md
