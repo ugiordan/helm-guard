@@ -9,3 +9,9 @@ redis:
 postgresql:
   rbac:
     create: false
+
+global:
+  securityContext:
+    runAsNonRoot: false
+  networkPolicy:
+    enabled: false

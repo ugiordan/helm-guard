@@ -327,3 +327,43 @@ def check_trust_006(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
                 ))
                 break
     return findings
+
+
+@register_check
+def check_trust_007(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
+    """HLM-TRUST-007: Global values override security fields."""
+    if not chart.values_yaml:
+        return []
+    findings = []
+    global_vals = chart.values_yaml.get("global", {})
+    if not isinstance(global_vals, dict):
+        return []
+
+    security_keys = {"securityContext", "privileged", "runAsRoot", "runAsUser",
+                     "allowPrivilegeEscalation", "hostNetwork", "hostPID",
+                     "serviceAccount", "rbac", "networkPolicy"}
+
+    def _search(data, path="global"):
+        if isinstance(data, dict):
+            for k, v in data.items():
+                current = f"{path}.{k}"
+                if k in security_keys:
+                    findings.append(_finding(
+                        "HLM-TRUST-007", "MEDIUM",
+                        "Global values override security fields",
+                        chart.chart_dir,
+                        os.path.join(chart.chart_dir, "values.yaml"), 0,
+                        f"Global value at '{current}' overrides security-related "
+                        f"fields for all subcharts. A parent chart can silently "
+                        f"change subchart security settings.",
+                        cwe="CWE-1188",
+                        remediation="Review global security overrides. Ensure subcharts aren't silently made less secure.",
+                        extra={"field": current},
+                    ))
+                _search(v, current)
+        elif isinstance(data, list):
+            for i, item in enumerate(data):
+                _search(item, f"{path}[{i}]")
+
+    _search(global_vals)
+    return findings

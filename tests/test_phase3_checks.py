@@ -142,3 +142,59 @@ class TestDependencyChecks:
             findings = run_checks(chart, config)
             dep002 = [f for f in findings if f["rule_id"] == "HLM-DEP-002"]
             assert len(dep002) == 0, "Range versions should not be flagged"
+
+
+# --- New checks (SEC-006, DEP-004, TRUST-007) ---
+
+
+class TestHelmignoreCheck:
+    def test_sec_006_missing_helmignore(self):
+        """test-chart has no .helmignore, should fire SEC-006."""
+        findings = _run("test-chart")
+        sec006 = [f for f in findings if f["rule_id"] == "HLM-SEC-006"]
+        assert len(sec006) == 1
+        assert sec006[0]["severity"] == "MEDIUM"
+
+    def test_sec_006_present_helmignore_clean(self):
+        """clean-chart has .helmignore, should not fire SEC-006."""
+        findings = _run("clean-chart")
+        assert "HLM-SEC-006" not in _rule_ids(findings)
+
+
+class TestAliasCheck:
+    def test_dep_004_alias_detected(self):
+        """test-chart-phase3 has nginx aliased as webserver."""
+        findings = _run("test-chart-phase3")
+        dep004 = [f for f in findings if f["rule_id"] == "HLM-DEP-004"]
+        assert len(dep004) == 1
+        assert dep004[0]["severity"] == "LOW"
+        assert dep004[0]["name"] == "nginx"
+        assert dep004[0]["alias"] == "webserver"
+
+    def test_dep_004_no_alias_clean(self):
+        """clean-chart has no dependencies, should not fire DEP-004."""
+        findings = _run("clean-chart")
+        assert "HLM-DEP-004" not in _rule_ids(findings)
+
+    def test_dep_004_same_name_alias_not_flagged(self):
+        """redis dep has no alias, should not fire DEP-004."""
+        findings = _run("test-chart-phase3")
+        dep004 = [f for f in findings if f["rule_id"] == "HLM-DEP-004"]
+        for f in dep004:
+            assert f["name"] != "redis"
+
+
+class TestGlobalSecurityOverride:
+    def test_trust_007_global_override_detected(self):
+        """test-chart-phase3 has global.securityContext and global.networkPolicy."""
+        findings = _run("test-chart-phase3")
+        trust007 = [f for f in findings if f["rule_id"] == "HLM-TRUST-007"]
+        assert len(trust007) >= 2
+        fields = [f["field"] for f in trust007]
+        assert "global.securityContext" in fields
+        assert "global.networkPolicy" in fields
+
+    def test_trust_007_no_global_clean(self):
+        """clean-chart has no global section, should not fire TRUST-007."""
+        findings = _run("clean-chart")
+        assert "HLM-TRUST-007" not in _rule_ids(findings)

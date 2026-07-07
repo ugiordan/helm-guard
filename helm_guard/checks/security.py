@@ -130,3 +130,20 @@ def check_sec_005(chart, config) -> list[dict]:
                         ))
                         break
     return findings
+
+
+@register_check
+def check_sec_006(chart, config) -> list[dict]:
+    """HLM-SEC-006: Missing .helmignore file."""
+    helmignore = os.path.join(chart.chart_dir, ".helmignore")
+    if os.path.exists(helmignore):
+        return []
+    return [_finding(
+        "HLM-SEC-006", "MEDIUM", "Missing .helmignore file",
+        chart.chart_dir, chart.chart_dir, 0,
+        "Chart has no .helmignore file. When packaged, sensitive files "
+        "(.git/, .env, private keys, CI configs) may be included in the "
+        "chart archive and distributed to users.",
+        cwe="CWE-200",
+        remediation="Add a .helmignore file. See helm create for the default template.",
+    )]

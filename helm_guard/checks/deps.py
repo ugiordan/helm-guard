@@ -207,3 +207,29 @@ def check_dep_003(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
                 ))
                 break
     return findings
+
+
+@register_check
+def check_dep_004(chart, config) -> list[dict]:
+    """HLM-DEP-004: Chart dependency uses alias."""
+    if not chart.chart_yaml:
+        return []
+    findings = []
+    deps = chart.chart_yaml.get("dependencies", [])
+    for dep in deps or []:
+        if not isinstance(dep, dict):
+            continue
+        alias = dep.get("alias", "")
+        name = str(dep.get("name", ""))
+        if alias and alias != name:
+            findings.append(_finding(
+                "HLM-DEP-004", "LOW", "Chart dependency uses alias",
+                chart.chart_dir, os.path.join(chart.chart_dir, "Chart.yaml"), 0,
+                f"Dependency '{name}' is aliased as '{alias}'. Aliases can hide "
+                f"the real chart name, making security audits harder. Verify the "
+                f"aliased dependency is the intended chart.",
+                cwe="CWE-829",
+                remediation=f"Verify '{alias}' is intentionally aliasing '{name}' from the expected repository.",
+                extra={"name": name, "alias": alias},
+            ))
+    return findings
