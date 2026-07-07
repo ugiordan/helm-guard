@@ -140,6 +140,14 @@ def check_values_in_name_without_trunc(chart: ChartInfo, config: ScannerConfig) 
             # Skip if trunc 63 is present
             if _TRUNC_RE.search(line):
                 continue
+            # Skip lines with include/template calls (they likely handle truncation)
+            if "include" in line or "template" in line:
+                continue
+            # Skip deeply indented name: fields (likely configMapRef.name,
+            # secretRef.name, port name, etc., not K8s metadata names)
+            indent = len(line) - len(line.lstrip())
+            if indent > 8:
+                continue
             findings.append(_finding(
                 rule_id="HLM-INJ-003",
                 severity="MEDIUM",

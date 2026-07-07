@@ -318,7 +318,7 @@ def check_trust_006(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
             stripped = line.strip()
             if stripped in ("ingress:", "egress:") or "spec: {}" in stripped:
                 findings.append(_finding(
-                    "HLM-TRUST-006", "MEDIUM", "Permissive NetworkPolicy in template",
+                    "HLM-TRUST-006", "LOW", "Permissive NetworkPolicy in template",
                     chart.chart_dir, tmpl.path, i,
                     "Template contains a NetworkPolicy with a permissive spec. "
                     "Empty ingress/egress rules allow all traffic.",

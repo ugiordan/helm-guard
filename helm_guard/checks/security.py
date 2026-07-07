@@ -113,22 +113,39 @@ def check_sec_005(chart, config) -> list[dict]:
         if 'ServiceAccount' not in content:
             continue
         # Check if any ServiceAccount definition lacks automountServiceAccountToken: false
-        if 'kind: ServiceAccount' in content or "kind: 'ServiceAccount'" in content:
-            if 'automountServiceAccountToken: false' not in content:
-                # Find the line with ServiceAccount
-                for i, line in enumerate(content.splitlines(), 1):
-                    if 'kind: ServiceAccount' in line:
-                        findings.append(_finding(
-                            "HLM-SEC-005", "MEDIUM",
-                            "ServiceAccount without automountServiceAccountToken disabled",
-                            chart.chart_dir, tmpl.path, i,
-                            "Template creates a ServiceAccount without explicitly setting "
-                            "automountServiceAccountToken: false. VoidLink malware targets "
-                            "/var/run/secrets/ tokens in 22% of cloud environments.",
-                            cwe="CWE-269",
-                            remediation="Add automountServiceAccountToken: false to ServiceAccount specs.",
-                        ))
-                        break
+        if 'kind: ServiceAccount' not in content and "kind: 'ServiceAccount'" not in content:
+            continue
+        # Verify kind: ServiceAccount is a resource kind, not a subjects reference
+        # (RoleBindings have ServiceAccount in subjects at deeper indentation)
+        lines = content.splitlines()
+        is_sa_resource = False
+        sa_line = 0
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            indent = len(line) - len(line.lstrip())
+            if stripped in ('kind: ServiceAccount', "kind: 'ServiceAccount'") and indent <= 2:
+                is_sa_resource = True
+                sa_line = i
+                break
+        if not is_sa_resource:
+            continue
+        # Check for automountServiceAccountToken (literal false OR templated)
+        if 'automountServiceAccountToken: false' in content:
+            continue
+        if 'automountServiceAccountToken:' in content and '{{' in content:
+            # Templated value (e.g. {{ .Values.sa.automountServiceAccountToken }}),
+            # typically defaults to false in values.yaml
+            continue
+        findings.append(_finding(
+            "HLM-SEC-005", "MEDIUM",
+            "ServiceAccount without automountServiceAccountToken disabled",
+            chart.chart_dir, tmpl.path, sa_line,
+            "Template creates a ServiceAccount without explicitly setting "
+            "automountServiceAccountToken: false. VoidLink malware targets "
+            "/var/run/secrets/ tokens in 22% of cloud environments.",
+            cwe="CWE-269",
+            remediation="Add automountServiceAccountToken: false to ServiceAccount specs.",
+        ))
     return findings
 
 
