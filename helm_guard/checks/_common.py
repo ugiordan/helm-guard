@@ -73,5 +73,8 @@ def _finding(
         "docs_url": docs_url,
     }
     if extra:
-        result.update(extra)
+        _RESERVED = {"rule_id", "severity", "title", "file", "line_start", "line_end",
+                     "message", "chart_dir", "cwe", "remediation", "docs_url"}
+        safe_extra = {k: v for k, v in extra.items() if k not in _RESERVED}
+        result.update(safe_extra)
     return result

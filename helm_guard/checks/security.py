@@ -122,12 +122,16 @@ def check_sec_005(chart, config) -> list[dict]:
         content = tmpl.content
         if 'ServiceAccount' not in content:
             continue
-        if 'kind: ServiceAccount' not in content and "kind: 'ServiceAccount'" not in content:
+        if 'kind: ServiceAccount' not in content and "kind: 'ServiceAccount'" not in content and 'kind: "ServiceAccount"' not in content:
             continue
         # Split by YAML document separator to check each SA independently
         documents = re.split(r'^---\s*$', content, flags=re.MULTILINE)
         line_offset = 0
-        for doc in documents:
+        for doc_idx, doc in enumerate(documents):
+            # Strip leading newline left by re.split for documents after the first
+            if doc_idx > 0 and doc.startswith('\n'):
+                doc = doc[1:]
+                line_offset += 1  # account for the stripped newline
             doc_lines = doc.splitlines()
             # Find SA resource definitions in this document
             sa_line = 0
@@ -135,7 +139,7 @@ def check_sec_005(chart, config) -> list[dict]:
             for i, line in enumerate(doc_lines, 1):
                 stripped = line.strip()
                 indent = len(line) - len(line.lstrip())
-                if stripped in ('kind: ServiceAccount', "kind: 'ServiceAccount'") and indent <= 2:
+                if stripped in ('kind: ServiceAccount', "kind: 'ServiceAccount'", 'kind: "ServiceAccount"') and indent <= 2:
                     is_sa_resource = True
                     sa_line = line_offset + i
                     break
@@ -145,6 +149,8 @@ def check_sec_005(chart, config) -> list[dict]:
                     line for line in doc.splitlines()
                     if not line.strip().startswith("#")
                 )
+                # Also strip Go template comments
+                uncommented = re.sub(r'\{\{-?\s*/\*.*?\*/\s*-?\}\}', '', uncommented)
                 has_automount_false = 'automountServiceAccountToken: false' in uncommented
                 has_automount_templated = (
                     'automountServiceAccountToken:' in uncommented and '{{' in uncommented

@@ -23,7 +23,11 @@ def check_hook_without_security_context(chart: ChartInfo, config: ScannerConfig)
             continue
         documents = re.split(r'^---\s*$', tmpl.content, flags=re.MULTILINE)
         line_offset = 0
-        for doc in documents:
+        for doc_idx, doc in enumerate(documents):
+            # Strip leading newline left by re.split for documents after the first
+            if doc_idx > 0 and doc.startswith('\n'):
+                doc = doc[1:]
+                line_offset += 1  # account for the stripped newline
             doc_lines = doc.splitlines()
             if _HOOK_ANNOTATION_RE.search(doc) and not _SECURITY_CONTEXT_RE.search(doc):
                 for lineno, line in enumerate(doc_lines, start=1):

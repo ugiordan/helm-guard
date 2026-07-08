@@ -111,23 +111,32 @@ def check_values_in_shell_without_quote(chart: ChartInfo, config: ScannerConfig)
 
             # Check for .Values in shell contexts
             if in_shell_block and _VALUES_RE.search(line):
-                # Skip if properly quoted
-                if _QUOTE_PIPE_RE.search(line):
-                    continue
-                findings.append(_finding(
-                    rule_id="HLM-INJ-002",
-                    severity="HIGH",
-                    title="Values in shell context without quote",
-                    chart_dir=chart.chart_dir,
-                    file_path=tmpl.path,
-                    line=lineno,
-                    message=(
-                        "'.Values.*' used in shell context without piping through 'quote'. "
-                        "This enables shell injection via crafted values."
-                    ),
-                    cwe="CWE-78",
-                    remediation="Pipe values through 'quote' in shell contexts: {{ .Values.foo | quote }}",
-                ))
+                # Check each .Values reference individually for quote protection
+                for ref_match in _VALUES_RE.finditer(line):
+                    ref_text = ref_match.group(0)
+                    ref_start = ref_match.start()
+                    # Find the closing }} after this reference
+                    closing = line.find("}}", ref_start)
+                    if closing == -1:
+                        closing = len(line)
+                    segment = line[ref_start:closing]
+                    if re.search(r'\|\s*(quote|squote)', segment):
+                        continue  # This specific ref is quoted
+                    findings.append(_finding(
+                        rule_id="HLM-INJ-002",
+                        severity="HIGH",
+                        title="Values in shell context without quote",
+                        chart_dir=chart.chart_dir,
+                        file_path=tmpl.path,
+                        line=lineno,
+                        message=(
+                            f"'{ref_text}' used in shell context without piping through 'quote'. "
+                            "This enables shell injection via crafted values."
+                        ),
+                        cwe="CWE-78",
+                        remediation="Pipe values through 'quote' in shell contexts: {{ .Values.foo | quote }}",
+                    ))
+                continue  # Don't fall through to later checks for this line
 
             if stripped == "" or stripped.startswith("---"):
                 if stripped.startswith("---"):
@@ -187,11 +196,14 @@ _LOOKUP_RE = re.compile(r"\{\{-?\s*(?:\$?\w+\s*:=\s*)?lookup\b")
 # Match sprig env/expandenv function calls, not "env" as a dict key or YAML key.
 # Sprig calls look like: {{ env "HOME" }} or {{ expandenv "$PATH" }}
 # False positive: dict "env" (list ...) where "env" is a string argument
-_ENV_RE = re.compile(r'\{\{-?\s*(?:env|expandenv)\s+["\'$]')
+_ENV_RE = re.compile(r'\{\{-?\s*(?:\$?\w+\s*:=\s*)?(?:env|expandenv)\s+["\'$]')
+_ENV_PIPE_RE = re.compile(r'\|\s*(?:env|expandenv)\b')
 _FILES_VALUES_RE = re.compile(r"\.Files\.(?:Get|Glob)\s+.*\.Values")
 _HARDCODED_IMAGE_RE = re.compile(r"image:\s*[\"']?([a-zA-Z0-9][\w.-]*\.[a-zA-Z]{2,}/\S+)")
 # Go template comment: {{/* ... */}} or {{- /* ... */ -}}
 _GO_COMMENT_RE = re.compile(r"\{\{-?\s*/\*")
+# Full closed Go template comment for stripping
+_GO_COMMENT_FULL_RE = re.compile(r'\{\{-?\s*/\*.*?\*/\s*-?\}\}')
 
 
 @register_check
@@ -200,7 +212,8 @@ def check_inj_004(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
     findings = []
     for tmpl in chart.template_files:
         for i, line in enumerate(tmpl.content.splitlines(), 1):
-            if _LOOKUP_RE.search(line) and not _GO_COMMENT_RE.search(line):
+            cleaned_line = _GO_COMMENT_FULL_RE.sub('', line)
+            if _LOOKUP_RE.search(cleaned_line):
                 findings.append(_finding(
                     "HLM-INJ-004", "LOW", "lookup function in template",
                     chart.chart_dir, tmpl.path, i,
@@ -223,7 +236,8 @@ def check_inj_005(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
     findings = []
     for tmpl in chart.template_files:
         for i, line in enumerate(tmpl.content.splitlines(), 1):
-            if _ENV_RE.search(line) and not _GO_COMMENT_RE.search(line):
+            cleaned_line = _GO_COMMENT_FULL_RE.sub('', line)
+            if _ENV_RE.search(cleaned_line) or _ENV_PIPE_RE.search(cleaned_line):
                 findings.append(_finding(
                     "HLM-INJ-005", "HIGH", "env/expandenv function in template",
                     chart.chart_dir, tmpl.path, i,
@@ -291,9 +305,8 @@ def check_inj_008(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
         for i, line in enumerate(tmpl.content.splitlines(), 1):
             if line.strip().startswith("#"):
                 continue
-            if _GO_COMMENT_RE.search(line):
-                continue
-            if _GETHOSTBYNAME_RE.search(line):
+            cleaned_line = _GO_COMMENT_FULL_RE.sub('', line)
+            if _GETHOSTBYNAME_RE.search(cleaned_line):
                 findings.append(_finding(
                     "HLM-INJ-008", "HIGH", "getHostByName function in template",
                     chart.chart_dir, tmpl.path, i,
