@@ -198,7 +198,7 @@ def check_dep_003(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
             if len(name) == len(common) and sum(a != b for a, b in zip(name, common)) <= 2:
                 findings.append(_finding(
                     "HLM-DEP-003", "HIGH", "Potential dependency name typosquat",
-                    chart.chart_dir, "Chart.yaml", 0,
+                    chart.chart_dir, os.path.join(chart.chart_dir, "Chart.yaml"), 0,
                     f"Chart dependency '{name}' is similar to common chart '{common}' "
                     f"(edit distance <= 2). This could be a typosquatting attack.",
                     cwe="CWE-829",

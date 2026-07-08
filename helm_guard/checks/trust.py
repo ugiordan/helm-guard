@@ -315,9 +315,33 @@ def check_trust_006(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
         content = tmpl.content
         if "NetworkPolicy" not in content:
             continue
-        for i, line in enumerate(content.splitlines(), 1):
+        lines = content.splitlines()
+        for i, line in enumerate(lines, 1):
             stripped = line.strip()
-            if stripped in ("ingress:", "egress:") or "spec: {}" in stripped:
+            # "spec: {}" is always permissive
+            if "spec: {}" in stripped:
+                findings.append(_finding(
+                    "HLM-TRUST-006", "LOW", "Permissive NetworkPolicy in template",
+                    chart.chart_dir, tmpl.path, i,
+                    "Template contains a NetworkPolicy with an empty spec. "
+                    "Empty spec allows all traffic.",
+                    cwe="CWE-284",
+                    remediation="Define explicit ingress/egress rules. Avoid empty spec.",
+                ))
+                break
+            # For ingress:/egress: lines, check the next non-empty line
+            # to distinguish permissive (- {}, []) from restrictive (- from:, - ports:)
+            if stripped not in ("ingress:", "egress:"):
+                continue
+            is_permissive = False
+            for j in range(i, min(i + 5, len(lines))):
+                next_line = lines[j].strip()
+                if not next_line or next_line.startswith("#"):
+                    continue
+                if next_line in ("- {}", "[]"):
+                    is_permissive = True
+                break  # Only check the first real line after ingress:/egress:
+            if is_permissive:
                 findings.append(_finding(
                     "HLM-TRUST-006", "LOW", "Permissive NetworkPolicy in template",
                     chart.chart_dir, tmpl.path, i,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 
 from helm_guard.checks._common import _finding, register_check
@@ -86,7 +87,7 @@ def check_hook_003(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
                                 findings.append(_finding(
                                     "HLM-HOOK-003", "HIGH",
                                     "Post-renderer executing external script",
-                                    chart.chart_dir, "values.yaml", 0,
+                                    chart.chart_dir, os.path.join(chart.chart_dir, "values.yaml"), 0,
                                     f"Chart configures a post-renderer at '{current}' "
                                     f"that executes '{cmd}'. Post-renderers run arbitrary "
                                     f"code on rendered manifests before apply.",

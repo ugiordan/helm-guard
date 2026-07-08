@@ -165,7 +165,7 @@ def check_values_in_name_without_trunc(chart: ChartInfo, config: ScannerConfig) 
     return findings
 
 
-_LOOKUP_RE = re.compile(r"\{\{-?\s*.*\blookup\b")
+_LOOKUP_RE = re.compile(r"\{\{-?\s*(?:\$?\w+\s*:=\s*)?lookup\b")
 # Match sprig env/expandenv function calls, not "env" as a dict key or YAML key.
 # Sprig calls look like: {{ env "HOME" }} or {{ expandenv "$PATH" }}
 # False positive: dict "env" (list ...) where "env" is a string argument
