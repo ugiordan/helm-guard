@@ -24,9 +24,6 @@ _SHELL_FLAG_RE = re.compile(r"^\s*-\s+-c\s*$")
 # .Values reference
 _VALUES_RE = re.compile(r"\.Values\.[a-zA-Z0-9_.]+")
 
-# Piped to quote or squote (possibly via chained filters like | default "" | quote)
-_QUOTE_PIPE_RE = re.compile(r"\.Values\.[a-zA-Z0-9_.]+.*\|\s*(quote|squote)")
-
 # name: field pattern
 _NAME_FIELD_RE = re.compile(r"^\s*name:")
 
@@ -200,8 +197,6 @@ _ENV_RE = re.compile(r'\{\{-?\s*(?:\$?\w+\s*:=\s*)?(?:env|expandenv)\s+["\'$]')
 _ENV_PIPE_RE = re.compile(r'\|\s*(?:env|expandenv)\b')
 _FILES_VALUES_RE = re.compile(r"\.Files\.(?:Get|Glob)\s+.*\.Values")
 _HARDCODED_IMAGE_RE = re.compile(r"image:\s*[\"']?([a-zA-Z0-9][\w.-]*\.[a-zA-Z]{2,}/\S+)")
-# Go template comment: {{/* ... */}} or {{- /* ... */ -}}
-_GO_COMMENT_RE = re.compile(r"\{\{-?\s*/\*")
 # Full closed Go template comment for stripping
 _GO_COMMENT_FULL_RE = re.compile(r'\{\{-?\s*/\*.*?\*/\s*-?\}\}', re.DOTALL)
 

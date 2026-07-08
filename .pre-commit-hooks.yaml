@@ -1,7 +1,7 @@
 - id: helm-guard
   name: helm-guard
   description: Scan Helm charts for supply chain security issues
-  entry: python -m helm_guard
+  entry: python -m helm_guard .
   language: python
   pass_filenames: false
   types: [yaml]
