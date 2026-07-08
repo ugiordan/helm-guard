@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 from helm_guard.checks import run_checks, SEVERITY_ORDER
@@ -66,6 +69,38 @@ def main(argv: list[str] | None = None) -> int:
         help="Show detailed information about a specific check rule",
     )
 
+    fix_group = parser.add_mutually_exclusive_group()
+    fix_group.add_argument(
+        "--fix",
+        action="store_true",
+        default=False,
+        help="Apply safe fixes (dependency pinning, clear secret defaults).",
+    )
+    fix_group.add_argument(
+        "--fix-dry-run",
+        action="store_true",
+        default=False,
+        help="Preview fixes without applying them.",
+    )
+
+    parser.add_argument(
+        "--baseline",
+        default=None,
+        help="Baseline file to suppress known findings (.helm-guard-baseline.json)",
+    )
+    parser.add_argument(
+        "--update-baseline",
+        default=None,
+        help="Write current findings as a new baseline file",
+    )
+
+    parser.add_argument(
+        "--exclude-paths",
+        nargs="*",
+        default=None,
+        help="Glob patterns to exclude from scanning",
+    )
+
     args = parser.parse_args(argv)
 
     if args.explain:
@@ -99,7 +134,84 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     chart = parse_chart_dir(target)
+
+    # Exclude paths: filter template files by glob patterns
+    if args.exclude_paths:
+        import fnmatch
+        original = len(chart.template_files)
+        chart.template_files = [t for t in chart.template_files if not any(
+            fnmatch.fnmatch(t.path, pat) for pat in args.exclude_paths
+        )]
+        excluded = original - len(chart.template_files)
+        if excluded:
+            print(f"Excluded {excluded} template(s) matching {args.exclude_paths}", file=sys.stderr)
+
     findings = run_checks(chart, config)
+
+    # Baseline: suppress known findings
+    if args.baseline:
+        baseline_path = Path(args.baseline)
+        if baseline_path.exists():
+            baseline_data = json.loads(baseline_path.read_text())
+            baseline_keys: set[tuple[str, str, str]] = set()
+            now = datetime.now(timezone.utc)
+            expired_count = 0
+            for entry in baseline_data.get("findings", []):
+                if not entry.get("reason"):
+                    print(f"Baseline: rejecting entry without reason (rule: {entry.get('rule_id')})", file=sys.stderr)
+                    continue
+                expires = entry.get("expires")
+                if expires:
+                    try:
+                        exp_dt = datetime.fromisoformat(expires)
+                        if exp_dt.tzinfo is None:
+                            exp_dt = exp_dt.replace(tzinfo=timezone.utc)
+                        if exp_dt < now:
+                            expired_count += 1
+                            continue
+                    except (ValueError, TypeError):
+                        pass
+                key = (entry["rule_id"], entry["file"], entry.get("content_hash", ""))
+                baseline_keys.add(key)
+            if expired_count:
+                print(f"Baseline: {expired_count} expired entry(ies) ignored", file=sys.stderr)
+            original_count = len(findings)
+            findings = [f for f in findings if (
+                f["rule_id"], f.get("file", ""),
+                hashlib.sha256(f"{f.get('message', '')}:{f.get('line_start', 0)}".encode()).hexdigest()[:16]
+            ) not in baseline_keys]
+            suppressed = original_count - len(findings)
+            if suppressed:
+                print(f"Baseline: suppressed {suppressed} known finding(s)", file=sys.stderr)
+
+    # Update baseline: write current findings
+    if args.update_baseline:
+        baseline = {
+            "version": "1.0",
+            "generated": datetime.now(timezone.utc).isoformat(),
+            "findings": []
+        }
+        for f in findings:
+            content_hash = hashlib.sha256(
+                f"{f.get('message', '')}:{f.get('line_start', 0)}".encode()
+            ).hexdigest()[:16]
+            baseline["findings"].append({
+                "rule_id": f["rule_id"],
+                "file": f.get("file", ""),
+                "content_hash": content_hash,
+                "line_hint": f.get("line_start", 0),
+                "reason": "Accepted via --update-baseline",
+            })
+        Path(args.update_baseline).write_text(json.dumps(baseline, indent=2))
+        print(f"Baseline written: {len(baseline['findings'])} finding(s) to {args.update_baseline}", file=sys.stderr)
+
+    # Fix mode: apply safe fixes
+    if args.fix or args.fix_dry_run:
+        from helm_guard.fixer import FixEngine
+        engine = FixEngine(dry_run=args.fix_dry_run)
+        fix_result = engine.fix_findings(findings, str(target))
+        mode = "dry-run" if args.fix_dry_run else "applied"
+        print(f"Fix {mode}: {len(fix_result.fixed)} fixed, {len(fix_result.skipped)} skipped", file=sys.stderr)
 
     if args.output_format == "json":
         output = format_json(findings, str(target))

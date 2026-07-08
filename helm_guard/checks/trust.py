@@ -130,6 +130,7 @@ def check_secrets_in_values(chart: ChartInfo, config: ScannerConfig) -> list[dic
             ),
             cwe="CWE-798",
             remediation="Use empty string as default, set secrets via --set or external secret management",
+            extra={"field": dotpath},
         ))
     return findings
 
