@@ -207,3 +207,25 @@ def test_fix_rejects_symlinked_values_yaml(tmp_path):
     result = engine.fix_findings(findings, str(chart_dir))
     # Should produce no fixes because values.yaml is a symlink
     assert len(result.fixed) == 0
+
+
+def test_extract_version_from_range_wildcard():
+    """Wildcard ranges like '*' or 'x.x.x' should return empty string."""
+    engine = FixEngine()
+    assert engine._extract_version_from_range("*") == ""
+    assert engine._extract_version_from_range("x.x.x") == ""
+
+
+def test_extract_version_from_range_normal():
+    """Normal SemVer ranges should extract a valid version."""
+    engine = FixEngine()
+    assert engine._extract_version_from_range("~1.2.3") == "1.2.3"
+    assert engine._extract_version_from_range("^2.0.0") == "2.0.0"
+    assert engine._extract_version_from_range(">=1.0.0,<2.0.0") == "1.0.0"
+
+
+def test_extract_version_from_range_compound():
+    """Compound ranges should extract the first version."""
+    engine = FixEngine()
+    result = engine._extract_version_from_range(">=1.5.0 <2.0.0")
+    assert result == "1.5.0"

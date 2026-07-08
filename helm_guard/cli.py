@@ -165,9 +165,15 @@ def main(argv: list[str] | None = None) -> int:
             now = datetime.now(timezone.utc)
             expired_count = 0
             for entry in baseline_data.get("findings", []):
+                if not isinstance(entry, dict):
+                    continue
+                rule_id = entry.get("rule_id", "")
+                if not rule_id:
+                    print("Baseline: rejecting entry without rule_id", file=sys.stderr)
+                    continue
                 reason = entry.get("reason", "")
                 if not reason or not str(reason).strip():
-                    print(f"Baseline: rejecting entry without reason (rule: {entry.get('rule_id')})", file=sys.stderr)
+                    print(f"Baseline: rejecting entry without reason (rule: {rule_id})", file=sys.stderr)
                     continue
                 expires = entry.get("expires")
                 if expires:
@@ -180,7 +186,7 @@ def main(argv: list[str] | None = None) -> int:
                             continue
                     except (ValueError, TypeError):
                         pass
-                key = (entry["rule_id"], entry["file"], entry.get("content_hash", ""))
+                key = (rule_id, entry.get("file", ""), entry.get("content_hash", ""))
                 baseline_keys.add(key)
             if expired_count:
                 print(f"Baseline: {expired_count} expired entry(ies) ignored", file=sys.stderr)

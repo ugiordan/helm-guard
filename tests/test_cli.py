@@ -156,6 +156,26 @@ def test_baseline_expired_entries_ignored(tmp_path):
     assert code == 1  # findings not suppressed
 
 
+def test_baseline_missing_rule_id(tmp_path):
+    """Baseline entries without rule_id should be skipped, not crash."""
+    baseline = {"version": "1.0", "findings": [
+        {"file": "test.yaml", "content_hash": "abc", "reason": "test"},
+    ]}
+    baseline_file = str(tmp_path / "baseline.json")
+    Path(baseline_file).write_text(json.dumps(baseline))
+    code = main([FIXTURES + "/test-chart", "--format", "text", "--baseline", baseline_file])
+    assert isinstance(code, int)
+
+
+def test_baseline_non_dict_entries(tmp_path):
+    """Baseline with non-dict entries should be skipped."""
+    baseline = {"version": "1.0", "findings": ["not-a-dict", 42, None]}
+    baseline_file = str(tmp_path / "baseline.json")
+    Path(baseline_file).write_text(json.dumps(baseline))
+    code = main([FIXTURES + "/test-chart", "--format", "text", "--baseline", baseline_file])
+    assert isinstance(code, int)
+
+
 def test_exclude_paths(tmp_path):
     """--exclude-paths should filter template files."""
     import io
