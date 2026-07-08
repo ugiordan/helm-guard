@@ -1,5 +1,12 @@
 /* helm-guard docs custom styles */
 
+/* Header logo: larger icon next to site title */
+.md-header__button.md-logo img,
+.md-header__button.md-logo svg {
+  height: 2.4rem;
+  width: auto;
+}
+
 /* Severity badge colors */
 .severity-critical {
   background-color: #d32f2f;
