@@ -41,7 +41,7 @@ def _load_yaml(path: Path) -> dict[str, Any] | None:
     attributes with source line/column information.  Falls back to an
     empty dict for non-dict documents and ``None`` for missing/broken files.
     """
-    if not path.exists() or not path.is_file():
+    if not path.exists() or not path.is_file() or path.is_symlink():
         return None
     yaml = YAML(typ="rt")
     try:
@@ -54,7 +54,7 @@ def _load_yaml(path: Path) -> dict[str, Any] | None:
 
 def _load_json(path: Path) -> dict[str, Any] | None:
     """Load a JSON file, returning None if it does not exist or fails."""
-    if not path.exists() or not path.is_file():
+    if not path.exists() or not path.is_file() or path.is_symlink():
         return None
     try:
         with open(path) as f:

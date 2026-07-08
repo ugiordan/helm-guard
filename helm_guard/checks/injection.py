@@ -8,7 +8,7 @@ from helm_guard.checks._common import _finding, register_check
 from helm_guard.config import ScannerConfig
 from helm_guard.parser import ChartInfo
 
-_TPL_RE = re.compile(r"\{\{-?\s*tpl\b")
+_TPL_RE = re.compile(r"\{\{-?\s*(?:\$?\w+\s*:=\s*)?tpl\b")
 
 # Shell context patterns: lines containing sh -c, bash -c, or script:
 # Known limitation (D-05): exec-form shell commands (e.g. ["/bin/sh", "-c", ...]),
@@ -66,6 +66,8 @@ def check_values_in_shell_without_quote(chart: ChartInfo, config: ScannerConfig)
         in_shell_block = False
         saw_shell_cmd = False
         shell_base_indent = -1
+        in_block_scalar = False
+        block_scalar_indent = -1
         for lineno, line in enumerate(tmpl.content.splitlines(), start=1):
             stripped = line.rstrip()
             current_indent = len(line) - len(line.lstrip()) if stripped else 0
@@ -97,6 +99,16 @@ def check_values_in_shell_without_quote(chart: ChartInfo, config: ScannerConfig)
                     if not _SHELL_CONTEXT_RE.search(line) and not _SHELL_FLAG_RE.match(stripped) and not _SHELL_CMD_RE.match(stripped):
                         in_shell_block = False
 
+            # Track block scalar entry (lines ending with | or >)
+            if stripped.endswith("|") or stripped.endswith(">") or stripped.endswith("|-") or stripped.endswith(">-"):
+                in_block_scalar = True
+                block_scalar_indent = current_indent
+
+            # Exit block scalar when indentation drops below the marker
+            if in_block_scalar and stripped and current_indent <= block_scalar_indent:
+                if not (stripped.endswith("|") or stripped.endswith(">") or stripped.endswith("|-") or stripped.endswith(">-")):
+                    in_block_scalar = False
+
             # Check for .Values in shell contexts
             if in_shell_block and _VALUES_RE.search(line):
                 # Skip if properly quoted
@@ -118,9 +130,15 @@ def check_values_in_shell_without_quote(chart: ChartInfo, config: ScannerConfig)
                 ))
 
             if stripped == "" or stripped.startswith("---"):
-                in_shell_block = False
-                saw_shell_cmd = False
-                shell_base_indent = -1
+                if stripped.startswith("---"):
+                    in_shell_block = False
+                    saw_shell_cmd = False
+                    shell_base_indent = -1
+                    in_block_scalar = False
+                elif not in_block_scalar:
+                    in_shell_block = False
+                    saw_shell_cmd = False
+                    shell_base_indent = -1
 
     return findings
 

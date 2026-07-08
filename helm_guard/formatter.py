@@ -59,8 +59,9 @@ _SARIF_LEVEL = {
 
 def _relativize_uri(file_path: str, target: str) -> str:
     """Convert absolute file paths to relative URIs for SARIF compliance."""
+    normalized = target.rstrip(os.sep)
     try:
-        return os.path.relpath(file_path, os.path.dirname(target))
+        return os.path.relpath(file_path, normalized)
     except ValueError:
         return file_path
 

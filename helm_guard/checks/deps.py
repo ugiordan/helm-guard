@@ -177,6 +177,19 @@ _COMMON_CHART_NAMES = {
 }
 
 
+def _edit_distance(a: str, b: str) -> int:
+    """Levenshtein edit distance with early exit for large length differences."""
+    if abs(len(a) - len(b)) > 2:
+        return 999
+    m, n = len(a), len(b)
+    dp = list(range(n + 1))
+    for i in range(1, m + 1):
+        prev, dp[0] = dp[0], i
+        for j in range(1, n + 1):
+            prev, dp[j] = dp[j], min(dp[j] + 1, dp[j - 1] + 1, prev + (a[i - 1] != b[j - 1]))
+    return dp[n]
+
+
 @register_check
 def check_dep_003(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
     """HLM-DEP-003: Chart dependency name potential typosquat."""
@@ -195,7 +208,7 @@ def check_dep_003(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
             if name == common:
                 break
             # Check edit distance of 1-2 (simple transposition, missing/extra char)
-            if len(name) == len(common) and sum(a != b for a, b in zip(name, common)) <= 2:
+            if _edit_distance(name, common) <= 2:
                 findings.append(_finding(
                     "HLM-DEP-003", "HIGH", "Potential dependency name typosquat",
                     chart.chart_dir, os.path.join(chart.chart_dir, "Chart.yaml"), 0,

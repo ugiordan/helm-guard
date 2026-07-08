@@ -21,27 +21,29 @@ def check_hook_without_security_context(chart: ChartInfo, config: ScannerConfig)
     for tmpl in chart.template_files:
         if not _HOOK_ANNOTATION_RE.search(tmpl.content):
             continue
-        # Template has a hook annotation. Check if securityContext appears anywhere.
-        if _SECURITY_CONTEXT_RE.search(tmpl.content):
-            continue
-        # Find the line where the hook annotation is declared for precise reporting
-        for lineno, line in enumerate(tmpl.content.splitlines(), start=1):
-            if _HOOK_ANNOTATION_RE.search(line):
-                findings.append(_finding(
-                    rule_id="HLM-HOOK-001",
-                    severity="HIGH",
-                    title="Hook Job without security context reference",
-                    chart_dir=chart.chart_dir,
-                    file_path=tmpl.path,
-                    line=lineno,
-                    message=(
-                        "Template has 'helm.sh/hook' annotation but no 'securityContext' "
-                        "reference. Hook Jobs should define a security context."
-                    ),
-                    cwe="CWE-250",
-                    remediation="Add securityContext to hook Job specs",
-                ))
-                break  # One finding per template file
+        documents = re.split(r'^---\s*$', tmpl.content, flags=re.MULTILINE)
+        line_offset = 0
+        for doc in documents:
+            doc_lines = doc.splitlines()
+            if _HOOK_ANNOTATION_RE.search(doc) and not _SECURITY_CONTEXT_RE.search(doc):
+                for lineno, line in enumerate(doc_lines, start=1):
+                    if _HOOK_ANNOTATION_RE.search(line):
+                        findings.append(_finding(
+                            rule_id="HLM-HOOK-001",
+                            severity="HIGH",
+                            title="Hook Job without security context reference",
+                            chart_dir=chart.chart_dir,
+                            file_path=tmpl.path,
+                            line=line_offset + lineno,
+                            message=(
+                                "Template has 'helm.sh/hook' annotation but no 'securityContext' "
+                                "reference in this document. Hook Jobs should define a security context."
+                            ),
+                            cwe="CWE-250",
+                            remediation="Add securityContext to hook Job specs",
+                        ))
+                        break
+            line_offset += len(doc_lines) + 1
     return findings
 
 

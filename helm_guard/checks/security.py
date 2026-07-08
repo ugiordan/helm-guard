@@ -61,8 +61,15 @@ def check_sec_003(chart, config) -> list[dict]:
                 continue
             if 'valueFiles' not in line and 'valuesFiles' not in line:
                 continue
-            # Check for absolute paths or traversal
-            if re.search(r'["\']?(/[a-zA-Z]|\.\.)', line):
+            # Extract values from the line and check each one
+            path_items = re.findall(r'["\']([^"\']+)["\']', line)
+            has_dangerous_path = False
+            for item in path_items:
+                item_stripped = item.strip()
+                if item_stripped.startswith('/') or item_stripped.startswith('..'):
+                    has_dangerous_path = True
+                    break
+            if has_dangerous_path:
                 findings.append(_finding(
                     "HLM-SEC-003", "HIGH", "valueFiles with absolute path or traversal",
                     chart.chart_dir, tmpl.path, i,
@@ -133,10 +140,14 @@ def check_sec_005(chart, config) -> list[dict]:
                     sa_line = line_offset + i
                     break
             if is_sa_resource:
-                # Check within this document only
-                has_automount_false = 'automountServiceAccountToken: false' in doc
+                # Strip YAML comments from the document before checking
+                uncommented = "\n".join(
+                    line for line in doc.splitlines()
+                    if not line.strip().startswith("#")
+                )
+                has_automount_false = 'automountServiceAccountToken: false' in uncommented
                 has_automount_templated = (
-                    'automountServiceAccountToken:' in doc and '{{' in doc
+                    'automountServiceAccountToken:' in uncommented and '{{' in uncommented
                 )
                 if not has_automount_false and not has_automount_templated:
                     findings.append(_finding(

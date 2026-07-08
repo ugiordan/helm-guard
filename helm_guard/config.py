@@ -30,8 +30,12 @@ class ScannerConfig:
 
     secret_key_patterns: list[str] = field(default_factory=lambda: [
         "password",
+        "passwd",
+        "pass",
         "token",
+        "tokens",
         "secret",
+        "secrets",
         "apiKey",
         "apikey",
         "credentials",

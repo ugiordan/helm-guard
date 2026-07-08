@@ -117,18 +117,22 @@ class FixEngine:
 
         Handles compound ranges like '>=1.2.0,<2.0.0' by splitting on
         range separators and returning the first version-like component.
+        Strips prerelease/build metadata (e.g. -beta.1, +build.123)
+        before matching.
         Returns empty string for wildcard ranges (*, x.x.x) that have
         no extractable numeric version.
         """
         parts = re.split(r"[,| ]+", version)
         for part in parts:
             cleaned = re.sub(r"[~^>=<]", "", part).strip()
-            if cleaned and re.match(r"\d+(\.\d+)*$", cleaned):
-                return cleaned
+            base_version = re.sub(r"[-+].*$", "", cleaned)
+            if base_version and re.match(r"\d+(\.\d+)*$", base_version):
+                return base_version
         # Fallback: strip all range operators
         fallback = re.sub(r"[~^>=<|]", "", version).strip()
-        if fallback and re.match(r"\d+(\.\d+)*$", fallback):
-            return fallback
+        base_fallback = re.sub(r"[-+].*$", "", fallback)
+        if base_fallback and re.match(r"\d+(\.\d+)*$", base_fallback):
+            return base_fallback
         return ""
 
     @staticmethod

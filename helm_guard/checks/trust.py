@@ -29,10 +29,29 @@ def _is_secret_key_match(key: str, patterns: list[str]) -> bool:
             return True
         # Split on underscores, hyphens, dots, and camelCase boundaries
         segments = re.split(r"[_.\-]|(?<=[a-z])(?=[A-Z])", key)
-        lower_segments = [s.lower() for s in segments]
-        # Only match if the pattern is the LAST segment
+        lower_segments = [s.lower() for s in segments if s]
+        # Match if the pattern is the last segment (e.g. dbPassword, db_password)
+        # or any non-terminal segment when the key doesn't have a descriptor
+        # suffix (e.g. password_hash). Avoids false positives on keys like
+        # passwordPolicy, secretName, tokenEndpoint where the pattern is a
+        # prefix describing what the field is about, not its value.
         if lower_segments and lower_segments[-1] == lp:
             return True
+        # Also match interior segments for compound secret keys
+        # like "db_password_hash" but not "passwordPolicy"
+        if len(lower_segments) >= 2 and lp in lower_segments[:-1]:
+            # Only match if the suffix after the pattern isn't a known
+            # non-value descriptor (Policy, Name, Endpoint, Ref, etc.)
+            pat_idx = lower_segments.index(lp)
+            suffix = lower_segments[pat_idx + 1] if pat_idx + 1 < len(lower_segments) else ""
+            non_value_suffixes = {
+                "policy", "name", "endpoint", "ref", "path", "file",
+                "dir", "url", "uri", "type", "class", "store", "manager",
+                "provider", "handler", "length", "min", "max", "format",
+                "pattern", "regex", "enabled", "required", "rotation",
+            }
+            if suffix not in non_value_suffixes:
+                return True
     return False
 
 
