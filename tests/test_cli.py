@@ -204,3 +204,43 @@ def test_fix_and_fix_dry_run_mutually_exclusive(tmp_path):
         assert False, "Should have raised SystemExit"
     except SystemExit as e:
         assert e.code == 2
+
+
+# --- Adversarial review regression tests ---
+
+
+def test_baseline_rejects_whitespace_only_reason(tmp_path):
+    """Baseline entries with whitespace-only reason must be rejected."""
+    import io
+    import sys
+
+    baseline_file = str(tmp_path / "baseline.json")
+    main([FIXTURES + "/test-chart", "--format", "text", "--update-baseline", baseline_file])
+    data = json.loads(Path(baseline_file).read_text())
+    # Set all reasons to whitespace
+    for entry in data["findings"]:
+        entry["reason"] = "   "
+    Path(baseline_file).write_text(json.dumps(data))
+
+    old_stderr = sys.stderr
+    sys.stderr = err_buf = io.StringIO()
+    code = main([FIXTURES + "/test-chart", "--format", "text", "--baseline", baseline_file])
+    sys.stderr = old_stderr
+    assert "rejecting entry without reason" in err_buf.getvalue()
+    assert code == 1  # findings not suppressed
+
+
+def test_exclude_paths_relative_pattern():
+    """--exclude-paths with a relative path pattern like 'templates/injection*' should work."""
+    import io
+    import sys
+
+    old_stdout = sys.stdout
+    old_stderr = sys.stderr
+    sys.stdout = out_buf = io.StringIO()
+    sys.stderr = err_buf = io.StringIO()
+    main([FIXTURES + "/test-chart", "--format", "json", "--exclude-paths", "templates/injection*"])
+    sys.stdout = old_stdout
+    sys.stderr = old_stderr
+    stderr_output = err_buf.getvalue()
+    assert "Excluded" in stderr_output, f"Expected 'Excluded' in stderr, got: {stderr_output!r}"

@@ -122,3 +122,88 @@ def test_fix_result_to_dict():
     d = r.to_dict()
     assert d["summary"]["fixed"] == 2
     assert d["summary"]["skipped"] == 2
+
+
+# --- Adversarial review regression tests ---
+
+
+def test_semver_compound_range_extraction():
+    """SemVer stripping must extract the first version from compound ranges,
+    not produce garbage like '1.2.0,2.0.0'."""
+    engine = FixEngine(dry_run=True)
+    cases = [
+        (">=1.2.0,<2.0.0", "1.2.0"),
+        ("~17.0", "17.0"),
+        ("^2.3.4", "2.3.4"),
+        (">=1.0.0 <2.0.0", "1.0.0"),
+        (">=1.0.0||<2.0.0", "1.0.0"),
+        (">= 1.5", "1.5"),
+    ]
+    for range_str, expected in cases:
+        result = engine._extract_version_from_range(range_str)
+        assert result == expected, f"Range {range_str!r}: got {result!r}, expected {expected!r}"
+
+
+def test_resolve_dotpath_simple():
+    """Dotpath traversal should handle plain dict paths."""
+    data = {"auth": {"password": "secret"}}
+    parent, key = FixEngine._resolve_dotpath(data, "auth.password")
+    assert parent == {"password": "secret"}
+    assert key == "password"
+
+
+def test_resolve_dotpath_array_index():
+    """Dotpath traversal should handle array-indexed paths like items[0].password."""
+    data = {"items": [{"password": "secret"}, {"password": "other"}]}
+    parent, key = FixEngine._resolve_dotpath(data, "items[0].password")
+    assert key == "password"
+    assert parent["password"] == "secret"
+
+
+def test_resolve_dotpath_missing():
+    """Dotpath traversal should return (None, None) for non-existent paths."""
+    data = {"auth": {"token": "x"}}
+    parent, key = FixEngine._resolve_dotpath(data, "auth.password")
+    assert parent is not None  # parent exists (auth dict)
+    assert key == "password"
+    # But key is not in parent, so the caller skips it
+
+
+def test_fix_rejects_symlinked_chart_yaml(tmp_path):
+    """Fixer must refuse to write through symlinked Chart.yaml."""
+    real_dir = tmp_path / "real"
+    real_dir.mkdir()
+    real_chart = real_dir / "Chart.yaml"
+    real_chart.write_text("apiVersion: v2\nname: real\nversion: 1.0.0\n")
+
+    chart_dir = tmp_path / "chart"
+    chart_dir.mkdir()
+    symlink = chart_dir / "Chart.yaml"
+    symlink.symlink_to(real_chart)
+
+    findings = [{"rule_id": "HLM-PIN-001", "file": str(symlink)}]
+    engine = FixEngine(dry_run=False)
+    result = engine.fix_findings(findings, str(chart_dir))
+    # Should produce no fixes because Chart.yaml is a symlink
+    assert len(result.fixed) == 0
+
+
+def test_fix_rejects_symlinked_values_yaml(tmp_path):
+    """Fixer must refuse to write through symlinked values.yaml."""
+    real_dir = tmp_path / "real"
+    real_dir.mkdir()
+    real_values = real_dir / "values.yaml"
+    real_values.write_text("auth:\n  password: secret\n")
+
+    chart_dir = tmp_path / "chart"
+    chart_dir.mkdir()
+    # Need a Chart.yaml for the chart dir to look valid
+    (chart_dir / "Chart.yaml").write_text("apiVersion: v2\nname: test\nversion: 1.0.0\n")
+    symlink = chart_dir / "values.yaml"
+    symlink.symlink_to(real_values)
+
+    findings = [{"rule_id": "HLM-TRUST-002", "field": "auth.password", "file": str(symlink)}]
+    engine = FixEngine(dry_run=False)
+    result = engine.fix_findings(findings, str(chart_dir))
+    # Should produce no fixes because values.yaml is a symlink
+    assert len(result.fixed) == 0

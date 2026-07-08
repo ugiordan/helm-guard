@@ -136,12 +136,20 @@ def main(argv: list[str] | None = None) -> int:
     chart = parse_chart_dir(target)
 
     # Exclude paths: filter template files by glob patterns
+    # Match against both the absolute path and the relative path from chart dir
+    # so patterns like 'templates/deployment.yaml' and '*injection*' both work.
     if args.exclude_paths:
         import fnmatch
+        import os
+        chart_dir_prefix = str(target) + os.sep
         original = len(chart.template_files)
-        chart.template_files = [t for t in chart.template_files if not any(
-            fnmatch.fnmatch(t.path, pat) for pat in args.exclude_paths
-        )]
+        def _matches_exclude(tpath: str) -> bool:
+            rel = tpath[len(chart_dir_prefix):] if tpath.startswith(chart_dir_prefix) else tpath
+            return any(
+                fnmatch.fnmatch(tpath, pat) or fnmatch.fnmatch(rel, pat)
+                for pat in args.exclude_paths
+            )
+        chart.template_files = [t for t in chart.template_files if not _matches_exclude(t.path)]
         excluded = original - len(chart.template_files)
         if excluded:
             print(f"Excluded {excluded} template(s) matching {args.exclude_paths}", file=sys.stderr)
@@ -157,7 +165,8 @@ def main(argv: list[str] | None = None) -> int:
             now = datetime.now(timezone.utc)
             expired_count = 0
             for entry in baseline_data.get("findings", []):
-                if not entry.get("reason"):
+                reason = entry.get("reason", "")
+                if not reason or not str(reason).strip():
                     print(f"Baseline: rejecting entry without reason (rule: {entry.get('rule_id')})", file=sys.stderr)
                     continue
                 expires = entry.get("expires")
