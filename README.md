@@ -1,160 +1,125 @@
-# helm-guard
-
 <p align="center">
-  <img src="site/docs/images/logo.svg" alt="helm-guard" width="120">
+  <img src="site/docs/images/logo.svg" alt="helm-guard logo" width="120">
 </p>
 
-Security scanner for Helm chart supply chain integrity.
+# helm-guard
 
-Checks what no existing tool covers: dependency pinning, template injection via `tpl`, hook security, values trust chains, OLM subscription security, and chart provenance. Static analysis by default (no `helm` CLI dependency).
+Static security analysis for Helm chart supply chain integrity.
 
-## Demo
+helm-guard uses a three-tier parser (structured YAML, text regex, rendered output) to analyze Helm charts without requiring the helm CLI. It runs 40 checks covering dependency pinning, template injection, values trust, OLM security, and CVE-based risks that rendered-manifest scanners like Checkov and Trivy miss entirely.
 
-![helm-guard Demo](site/docs/images/demo.gif)
-
-## Documentation
-
-Full documentation at [ugiordan.github.io/helm-guard](https://ugiordan.github.io/helm-guard/)
-
-## What it checks (37 checks across 10 categories)
-
-| ID | Category | Severity | Description |
-|----|----------|----------|-------------|
-| HLM-PIN-001 | Pinning | HIGH | Chart dependency with SemVer range |
-| HLM-PIN-002 | Pinning | HIGH | Missing Chart.lock when dependencies exist |
-| HLM-PIN-003 | Pinning | MEDIUM | Mutable image tag in values.yaml |
-| HLM-PIN-004 | Pinning | MEDIUM | OLM subscription channel not version-pinned |
-| HLM-PIN-005 | Pinning | MEDIUM | Chart version not following SemVer |
-| HLM-INJ-001 | Injection | CRITICAL | `tpl` function usage (Go template RCE) |
-| HLM-INJ-002 | Injection | HIGH | `.Values` in shell context without `quote` |
-| HLM-INJ-003 | Injection | MEDIUM | `.Values` in `name:` without `trunc 63` |
-| HLM-INJ-004 | Injection | CRITICAL | `lookup` function in template (cluster data exfil) |
-| HLM-INJ-005 | Injection | HIGH | `env`/`expandenv` function (host env leak) |
-| HLM-INJ-006 | Injection | HIGH | `.Files.Get`/`.Files.Glob` with `.Values` path |
-| HLM-INJ-007 | Injection | MEDIUM | Hardcoded container registry in template |
-| HLM-INJ-008 | Injection | HIGH | `getHostByName` DNS exfiltration (CVE-2023-25165) |
-| HLM-TRUST-001 | Trust | HIGH | No values.schema.json |
-| HLM-TRUST-002 | Trust | HIGH | Secrets with non-empty defaults in values.yaml |
-| HLM-TRUST-003 | Trust | HIGH | Dependency from untrusted repository |
-| HLM-TRUST-004 | Trust | HIGH | `hostNetwork`/`hostPID` enabled in values defaults |
-| HLM-TRUST-005 | Trust | MEDIUM | HTTP URL in values.yaml (cleartext connection) |
-| HLM-TRUST-006 | Trust | MEDIUM | Permissive NetworkPolicy in templates |
-| HLM-HOOK-001 | Hooks | HIGH | Hook Job without security context reference |
-| HLM-HOOK-002 | Hooks | MEDIUM | Hook with before-hook-creation delete policy |
-| HLM-HOOK-003 | Hooks | HIGH | Post-renderer executing external script |
-| HLM-OLM-001 | OLM | HIGH | Automatic install plan without version pin |
-| HLM-OLM-002 | OLM | MEDIUM | Subscription using community catalog |
-| HLM-OLM-003 | OLM | MEDIUM | Operator in privileged namespace |
-| HLM-OLM-004 | OLM | HIGH | Automatic approval with unstable channel |
-| HLM-PROV-001 | Provenance | INFO | Chart not signed (disabled by default) |
-| HLM-NS-001 | Namespace | HIGH | Resource in privileged namespace (render mode) |
-| HLM-NS-002 | Namespace | MEDIUM | Release namespace without schema restriction |
-| HLM-SEC-001 | Security | HIGH | Path traversal in chart name (CVE-2024-25620) |
-| HLM-SEC-002 | Security | CRITICAL | Chart.lock symlink arbitrary write (CVE-2025-53547) |
-| HLM-SEC-003 | Security | HIGH | valueFiles path traversal (CVE-2022-24348) |
-| HLM-SEC-004 | Security | HIGH | Plugin version path traversal (CVE-2026-35204) |
-| HLM-SEC-005 | Security | MEDIUM | ServiceAccount token automount not disabled |
-| HLM-DEP-001 | Dependencies | MEDIUM | Subchart values override of security fields |
-| HLM-DEP-002 | Dependencies | LOW | Dependency version conflict (Chart.yaml vs Chart.lock) |
-| HLM-DEP-003 | Dependencies | HIGH | Potential dependency name typosquat |
+**[Documentation](https://ugiordan.github.io/helm-guard/)** | **[Detection Rules Reference](https://ugiordan.github.io/helm-guard/reference/rules/)**
 
 ## Install
 
 ```bash
-pip install helm-guard
+pip install git+https://github.com/ugiordan/helm-guard.git
 ```
 
-Or run from source:
+Requires Python 3.10+ and `ruamel.yaml`.
 
-```bash
-git clone https://github.com/ugiordan/helm-guard.git
-cd helm-guard
-pip install -e .
-```
-
-## Usage
-
-```bash
-# Scan a chart directory (JSON output, default)
-helm-guard /path/to/chart
-
-# Text output
-helm-guard /path/to/chart --format text
-
-# SARIF output (for GitHub Code Scanning)
-helm-guard /path/to/chart --format sarif
-
-# Custom config
-helm-guard /path/to/chart --config .helm-guard.yaml
-
-# Only fail on HIGH or CRITICAL
-helm-guard /path/to/chart --fail-on HIGH
-
-# Filter output to HIGH+ severity
-helm-guard /path/to/chart --min-severity HIGH
-
-# Always exit 0 (informational mode)
-helm-guard /path/to/chart --exit-zero
-
-# Write output to file
-helm-guard /path/to/chart --output results.json
-```
-
-## Exit codes
-
-| Code | Meaning |
-|------|---------|
-| 0 | No findings (or `--exit-zero` used) |
-| 1 | Findings at or above `--fail-on` threshold |
-| 2 | Error (bad path, missing Chart.yaml) |
-
-## Configuration
-
-Create `.helm-guard.yaml` in your project root:
-
+### GitHub Action
 ```yaml
-trusted_chart_repos:
-  - "https://charts.helm.sh/stable"
-  - "oci://quay.io/opendatahub/"
-  - "oci://registry.redhat.io/"
-
-trusted_olm_sources:
-  - "redhat-operators"
-  - "certified-operators"
-
-skip_checks:
-  - "HLM-PROV-001"
-
-min_severity: "LOW"
-
-secret_key_patterns:
-  - "password"
-  - "token"
-  - "secret"
-  - "apiKey"
-  - "credentials"
-
-privileged_namespaces:
-  - "kube-system"
-  - "kube-public"
-  - "default"
-  - "openshift-operators"
+- uses: ugiordan/kube-security-action@v1
 ```
 
-## Three-tier parser
+### Pre-commit
+```yaml
+repos:
+  - repo: https://github.com/ugiordan/helm-guard
+    rev: v1.0.0
+    hooks:
+      - id: helm-guard
+```
 
-helm-guard uses a three-tier parser design because Helm templates contain Go template directives that make them invalid YAML:
+## Quick Start
 
-- **Tier 1 (Structured YAML)**: `Chart.yaml`, `values.yaml`, `Chart.lock`, `values.schema.json`. Parsed with `ruamel.yaml`. Used by PIN, TRUST, OLM, PROV, and DEP checks.
-- **Tier 2 (Text/regex)**: Template files scanned as raw text with regex patterns. Used by INJ, HOOK, and NS checks.
-- **Tier 3 (Rendered output)**: Opt-in via `--render`. Requires `helm template` CLI. Used by NS-001.
+```bash
+helm-guard /path/to/chart --format text
+```
 
-## Scope boundary
+Example output:
+```
+Helm Chart Security Scan: charts/rhai-on-openshift-chart
+Found 3 issue(s)
 
-helm-guard checks chart-level supply chain integrity. It does not duplicate what existing tools cover:
+[LOW] HLM-INJ-004: lookup function in template
+  File: templates/definitions/_helpers.tpl:319
+  Template uses lookup which queries live cluster API during rendering
+  Fix: Consider alternatives. Use skipCrdCheck fallback if needed.
 
-- **kube-linter**: Resource best practices (probes, limits, pod security)
-- **kube-chainsaw**: RBAC privilege escalation chains
+[HIGH] HLM-OLM-001: Automatic install plan without version pin
+  File: values.yaml:23
+  installPlanApproval is Automatic without startingCSV version pin
+  Fix: Use Manual approval or pin to a specific CSV version
+
+[MEDIUM] HLM-PIN-004: OLM channel not version-pinned
+  File: values.yaml:59
+  Channel 'beta' without version suffix
+  Fix: Use versioned channels (e.g., stable-v1.3)
+
+Summary: 1 HIGH, 1 MEDIUM, 1 LOW
+```
+
+## What It Detects
+
+40 checks across 10 categories:
+
+- **Injection** (8): tpl function (CRITICAL), lookup, env/expandenv, getHostByName, shell injection, .Files.Get, hardcoded registries. All backed by real CVEs.
+- **Pinning** (5): SemVer ranges in Chart.yaml, missing Chart.lock, mutable image tags, OLM channels, SemVer compliance
+- **Trust** (7): missing schema, secrets in values, untrusted repos, hostNetwork/hostPID, HTTP URLs, permissive NetworkPolicy, global overrides
+- **Security** (6): path traversal in chart name (CVE-2024-25620), symlinked Chart.lock (CVE-2025-53547), valueFiles traversal (CVE-2022-24348), plugin path traversal (CVE-2026-35204), SA automount, missing .helmignore
+- **OLM** (4): auto-approval without pin, community catalog, privileged namespace, unstable channel + auto-approval
+- **Hooks** (3): hook without securityContext, delete-policy evidence destruction, post-renderer scripts
+- **Dependencies** (4): subchart security overrides, version conflicts, typosquatting, alias hiding
+- **Namespace** (2): privileged namespace (render mode), release namespace without schema
+- **Provenance** (1): missing chart signature
+
+## CVEs Covered
+
+- [CVE-2020-11013](https://nvd.nist.gov/vuln/detail/CVE-2020-11013): lookup function cluster API access
+- [CVE-2023-25165](https://nvd.nist.gov/vuln/detail/CVE-2023-25165): getHostByName DNS exfiltration
+- [CVE-2024-25620](https://nvd.nist.gov/vuln/detail/CVE-2024-25620): Chart.yaml path traversal
+- [CVE-2025-53547](https://nvd.nist.gov/vuln/detail/CVE-2025-53547): symlinked Chart.lock code execution
+- [CVE-2026-35204](https://nvd.nist.gov/vuln/detail/CVE-2026-35204): plugin version path traversal
+- [CVE-2022-24348](https://nvd.nist.gov/vuln/detail/CVE-2022-24348): Argo CD valueFiles path traversal
+
+## Why helm-guard?
+
+| Tool | Chart-Level | Template Injection | Dependency Trust | CVE-Based |
+|------|:-:|:-:|:-:|:-:|
+| **helm-guard** | Yes | Yes | Yes | Yes |
+| Checkov | No | No | No | No |
+| Trivy | No | No | No | No |
+| Kubescape | No | No | No | No |
+| kube-linter | No | No | No | No |
+
+helm-guard is the only tool that performs chart-level supply chain analysis. Existing tools scan rendered manifests for K8s best practices but miss dependency pinning, template injection, and chart provenance.
+
+## Key Features
+
+- **Three-tier parser**: structured YAML (Chart.yaml/values.yaml), text regex (templates), rendered output (opt-in via `--render`)
+- **Auto-fix** (`--fix`): pins Chart.yaml dependencies, clears secret defaults in values.yaml
+- **Baseline management** (`--baseline`): suppress known findings with content fingerprinting
+- **No helm CLI dependency**: static mode works without helm installed
+- **Render safety interlock**: refuses `--render` if tpl injection is detected
+- **SARIF output**: integrates with GitHub Code Scanning
+
+## Output Formats
+
+- **Text**: human-readable with severity summary
+- **JSON**: machine-parseable findings with docs_url per finding
+- **SARIF**: integrates with GitHub Code Scanning, GitLab SAST
+
+```bash
+helm-guard /path/to/chart --format sarif --output results.sarif
+```
+
+## Ecosystem Tested
+
+- odh-gitops: 3 findings (tuned with real-world feedback)
+- 18 bitnami charts: zero crashes, FP rate reduced to ~15%
+- 3 prometheus-community charts, 3 grafana charts
 
 ## License
 
