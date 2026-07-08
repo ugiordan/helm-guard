@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" width="200" height="240">
+  <defs>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#60a5fa;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2563eb;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <path d="M100 10 L190 60 L190 140 L100 230 L10 140 L10 60 Z" fill="url(#shieldGrad)" stroke="#1e40af" stroke-width="4"/>
+  <circle cx="100" cy="120" r="35" fill="none" stroke="white" stroke-width="6"/>
+  <circle cx="100" cy="120" r="8" fill="white"/>
+  <line x1="100" y1="79" x2="100" y2="91" stroke="white" stroke-width="6" stroke-linecap="round"/>
+  <line x1="100" y1="149" x2="100" y2="161" stroke="white" stroke-width="6" stroke-linecap="round"/>
+  <line x1="59" y1="120" x2="71" y2="120" stroke="white" stroke-width="6" stroke-linecap="round"/>
+  <line x1="129" y1="120" x2="141" y2="120" stroke="white" stroke-width="6" stroke-linecap="round"/>
+  <line x1="71" y1="91" x2="79" y2="99" stroke="white" stroke-width="6" stroke-linecap="round"/>
+  <line x1="121" y1="141" x2="129" y2="149" stroke="white" stroke-width="6" stroke-linecap="round"/>
+  <line x1="121" y1="99" x2="129" y2="91" stroke="white" stroke-width="6" stroke-linecap="round"/>
+  <line x1="71" y1="149" x2="79" y2="141" stroke="white" stroke-width="6" stroke-linecap="round"/>
+</svg>
