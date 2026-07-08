@@ -203,7 +203,7 @@ _HARDCODED_IMAGE_RE = re.compile(r"image:\s*[\"']?([a-zA-Z0-9][\w.-]*\.[a-zA-Z]{
 # Go template comment: {{/* ... */}} or {{- /* ... */ -}}
 _GO_COMMENT_RE = re.compile(r"\{\{-?\s*/\*")
 # Full closed Go template comment for stripping
-_GO_COMMENT_FULL_RE = re.compile(r'\{\{-?\s*/\*.*?\*/\s*-?\}\}')
+_GO_COMMENT_FULL_RE = re.compile(r'\{\{-?\s*/\*.*?\*/\s*-?\}\}', re.DOTALL)
 
 
 @register_check

@@ -27,7 +27,6 @@ def check_hook_without_security_context(chart: ChartInfo, config: ScannerConfig)
             # Strip leading newline left by re.split for documents after the first
             if doc_idx > 0 and doc.startswith('\n'):
                 doc = doc[1:]
-                line_offset += 1  # account for the stripped newline
             doc_lines = doc.splitlines()
             if _HOOK_ANNOTATION_RE.search(doc) and not _SECURITY_CONTEXT_RE.search(doc):
                 for lineno, line in enumerate(doc_lines, start=1):

@@ -131,7 +131,6 @@ def check_sec_005(chart, config) -> list[dict]:
             # Strip leading newline left by re.split for documents after the first
             if doc_idx > 0 and doc.startswith('\n'):
                 doc = doc[1:]
-                line_offset += 1  # account for the stripped newline
             doc_lines = doc.splitlines()
             # Find SA resource definitions in this document
             sa_line = 0
@@ -150,10 +149,11 @@ def check_sec_005(chart, config) -> list[dict]:
                     if not line.strip().startswith("#")
                 )
                 # Also strip Go template comments
-                uncommented = re.sub(r'\{\{-?\s*/\*.*?\*/\s*-?\}\}', '', uncommented)
+                uncommented = re.sub(r'\{\{-?\s*/\*.*?\*/\s*-?\}\}', '', uncommented, flags=re.DOTALL)
                 has_automount_false = 'automountServiceAccountToken: false' in uncommented
-                has_automount_templated = (
-                    'automountServiceAccountToken:' in uncommented and '{{' in uncommented
+                has_automount_templated = any(
+                    'automountServiceAccountToken:' in uline and '{{' in uline
+                    for uline in uncommented.splitlines()
                 )
                 if not has_automount_false and not has_automount_templated:
                     findings.append(_finding(
