@@ -6,7 +6,7 @@
 
 Static security analysis for Helm chart supply chain integrity.
 
-helm-guard uses a three-tier parser (structured YAML, text regex, rendered output) to analyze Helm charts without requiring the helm CLI. It runs 40 checks covering dependency pinning, template injection, values trust, OLM security, and CVE-based risks that rendered-manifest scanners like Checkov and Trivy miss entirely.
+helm-guard uses a three-tier parser (structured YAML, text regex, rendered output) to analyze Helm charts without requiring the helm CLI. It runs 42 checks covering dependency pinning, template injection, values trust, OLM security, and CVE-based risks that rendered-manifest scanners like Checkov and Trivy miss entirely.
 
 **[Documentation](https://ugiordan.github.io/helm-guard/)** | **[Detection Rules Reference](https://ugiordan.github.io/helm-guard/reference/rules/)**
 
@@ -63,7 +63,7 @@ Summary: 1 HIGH, 1 MEDIUM, 1 LOW
 
 ## What It Detects
 
-40 checks across 10 categories:
+42 checks across 10 categories:
 
 - **Injection** (8): tpl function (CRITICAL), lookup, env/expandenv, getHostByName, shell injection, .Files.Get, hardcoded registries. All backed by real CVEs.
 - **Pinning** (5): SemVer ranges in Chart.yaml, missing Chart.lock, mutable image tags, OLM channels, SemVer compliance

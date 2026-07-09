@@ -22,6 +22,12 @@ helm-guard TARGET [OPTIONS]
 | `--min-severity` | Minimum severity to report: `INFO`, `LOW`, `MEDIUM`, `HIGH`, `CRITICAL` | `LOW` |
 | `--fail-on` | Exit 1 only if findings at or above this severity | any finding |
 | `--exit-zero` | Always exit 0 regardless of findings | false |
+| `--explain RULE_ID` | Show detailed information about a specific check rule | none |
+| `--fix` | Apply safe fixes (dependency pinning, clear secret defaults) | false |
+| `--fix-dry-run` | Preview fixes without applying them (mutually exclusive with `--fix`) | false |
+| `--baseline FILE` | Baseline file to suppress known findings. Entries require `rule_id` and `reason`. Supports expiration via `expires` field. | none |
+| `--update-baseline FILE` | Write current findings as a new baseline file | none |
+| `--exclude-paths PATTERN [PATTERN ...]` | Glob patterns to exclude template files from scanning | none |
 
 ## Exit codes
 
@@ -57,4 +63,22 @@ helm-guard /path/to/chart --exit-zero
 
 # Combine flags for CI
 helm-guard /path/to/chart --fail-on HIGH --format sarif --output results.sarif
+
+# Look up details about a specific rule
+helm-guard --explain HLM-INJ-001
+
+# Auto-fix findings (pins dependencies, clears secret defaults)
+helm-guard /path/to/chart --fix
+
+# Preview what --fix would change without modifying files
+helm-guard /path/to/chart --fix-dry-run
+
+# Suppress known findings using a baseline file
+helm-guard /path/to/chart --baseline .helm-guard-baseline.json
+
+# Generate a baseline from current findings
+helm-guard /path/to/chart --update-baseline .helm-guard-baseline.json
+
+# Exclude specific paths from scanning
+helm-guard /path/to/chart --exclude-paths 'templates/tests/*' '*debug*'
 ```

@@ -1,6 +1,6 @@
 # Rules Reference
 
-helm-guard implements 37 checks across 10 categories. Each check operates at a specific parser tier.
+helm-guard implements 42 checks across 10 categories. Each check operates at a specific parser tier.
 
 ## Parser tiers
 
@@ -175,6 +175,14 @@ helm-guard implements 37 checks across 10 categories. Each check operates at a s
 - **Detects**: Templates containing a NetworkPolicy resource with empty `ingress:`, `egress:`, or `spec: {}` blocks. Empty rules allow all traffic.
 - **Remediation**: Define explicit ingress/egress rules. Avoid empty spec.
 
+### HLM-TRUST-007: Global values override security fields
+
+- **Severity**: MEDIUM
+- **CWE**: CWE-1188
+- **Tier**: 1
+- **Detects**: `global` section in values.yaml that overrides security-related fields (`securityContext`, `privileged`, `runAsRoot`, `runAsUser`, `allowPrivilegeEscalation`, `hostNetwork`, `hostPID`, `serviceAccount`, `rbac`, `networkPolicy`) for all subcharts. A parent chart can silently weaken subchart security settings via global overrides.
+- **Remediation**: Review global security overrides. Ensure subcharts aren't silently made less secure.
+
 ---
 
 ## Hooks (HLM-HOOK)
@@ -328,6 +336,14 @@ helm-guard implements 37 checks across 10 categories. Each check operates at a s
 - **Detects**: Templates creating a `ServiceAccount` resource without explicitly setting `automountServiceAccountToken: false`. VoidLink malware targets `/var/run/secrets/` tokens in 22% of cloud environments.
 - **Remediation**: Add `automountServiceAccountToken: false` to ServiceAccount specs.
 
+### HLM-SEC-006: Missing .helmignore file
+
+- **Severity**: MEDIUM
+- **CWE**: CWE-200
+- **Tier**: 1
+- **Detects**: Chart has no `.helmignore` file. When packaged, sensitive files (`.git/`, `.env`, private keys, CI configs) may be included in the chart archive and distributed to users.
+- **Remediation**: Add a `.helmignore` file. See `helm create` for the default template.
+
 ---
 
 ## Dependencies (HLM-DEP)
@@ -355,3 +371,11 @@ helm-guard implements 37 checks across 10 categories. Each check operates at a s
 - **Tier**: 1
 - **Detects**: Chart dependency names with edit distance <= 2 from common chart names (nginx, redis, postgresql, mysql, mongodb, kafka, elasticsearch, prometheus, grafana, cert-manager, etc.). This catches typosquatting attacks where a malicious chart uses a name like `ngnix` or `reddis` to trick users.
 - **Remediation**: Verify the dependency is the intended chart. Check the repository URL matches the official source.
+
+### HLM-DEP-004: Chart dependency uses alias
+
+- **Severity**: LOW
+- **CWE**: CWE-829
+- **Tier**: 1
+- **Detects**: Chart dependency in Chart.yaml uses an `alias` field that differs from the chart `name`. Aliases can hide the real chart name, making security audits harder and potentially masking a malicious dependency behind a trusted-looking alias.
+- **Remediation**: Verify the aliased dependency is the intended chart from the expected repository.
