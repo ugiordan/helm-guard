@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+spec:
+  template:
+    spec:
+      volumes:
+        - name: host-data
+          hostPath:
+            path: /var/data
+      containers:
+        - name: app
+          image: nginx
+          securityContext:
+            capabilities:
+              add:
+                - SYS_ADMIN
+                - NET_RAW
+          volumeMounts:
+            - name: host-data
+              mountPath: /data

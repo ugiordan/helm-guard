@@ -1,0 +1,13 @@
+{
+  "type": "object",
+  "properties": {
+    "config": {
+      "$ref": "#/definitions/config"
+    }
+  },
+  "definitions": {
+    "config": {
+      "type": "object"
+    }
+  }
+}

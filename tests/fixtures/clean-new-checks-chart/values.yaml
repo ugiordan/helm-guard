@@ -1,0 +1,12 @@
+image:
+  repository: nginx
+  tag: "1.25.3"
+
+sidecar:
+  image:
+    repository: busybox
+    tag: "1.36.1"
+
+app:
+  notAnImage:
+    tag: "latest"

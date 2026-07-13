@@ -232,3 +232,58 @@ def check_pin_005(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
             extra={"version": version},
         )]
     return []
+
+
+@register_check
+def check_pin_006(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
+    """HLM-PIN-006: Mutable image tag in values defaults."""
+    findings = []
+    values_path = os.path.join(chart.chart_dir, "values.yaml")
+
+    def _walk(data: Any, path: str = "") -> None:
+        if not isinstance(data, dict):
+            return
+        for key, val in data.items():
+            current = f"{path}.{key}" if path else key
+            if isinstance(val, dict):
+                _walk(val, current)
+                continue
+            if not isinstance(val, str):
+                continue
+            # Only match keys named "tag" that sit next to a "repository" key
+            # at the same level (confirming this is an image config block).
+            if key != "tag":
+                continue
+            if "repository" not in data:
+                continue
+            tag_val = val.strip()
+            # Only flag "latest" or empty string.
+            # Semver-like tags (1.2.3, v1.0.0) are pinned enough.
+            if tag_val == "latest":
+                line = yaml_key_line(data, key)
+                findings.append(_finding(
+                    "HLM-PIN-006", "HIGH", "Mutable image tag 'latest' in values",
+                    chart.chart_dir, values_path, line,
+                    f"Image tag at '{current}' is set to 'latest'. "
+                    f"Mutable tags silently change the deployed image. "
+                    f"Use a digest or specific version tag.",
+                    cwe="CWE-829",
+                    remediation="Pin image to a specific tag or use @sha256: digest.",
+                    extra={"path": current, "tag": tag_val},
+                ))
+            elif tag_val == "":
+                line = yaml_key_line(data, key)
+                findings.append(_finding(
+                    "HLM-PIN-006", "HIGH", "Empty image tag in values",
+                    chart.chart_dir, values_path, line,
+                    f"Image tag at '{current}' is empty. "
+                    f"An empty tag defaults to 'latest' at runtime. "
+                    f"Use a digest or specific version tag.",
+                    cwe="CWE-829",
+                    remediation="Pin image to a specific tag or use @sha256: digest.",
+                    extra={"path": current, "tag": tag_val},
+                ))
+
+    if chart.values_yaml:
+        _walk(chart.values_yaml)
+    return findings

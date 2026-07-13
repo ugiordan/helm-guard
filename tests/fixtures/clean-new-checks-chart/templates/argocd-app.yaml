@@ -1,0 +1,9 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+spec:
+  source:
+    repoURL: https://charts.example.com/repo
+    chart: my-chart
+    targetRevision: "1.0.0"

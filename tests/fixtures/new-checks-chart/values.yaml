@@ -1,0 +1,12 @@
+image:
+  repository: nginx
+  tag: "latest"
+
+sidecar:
+  image:
+    repository: busybox
+    tag: ""
+
+app:
+  notAnImage:
+    tag: "foo"

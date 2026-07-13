@@ -312,3 +312,40 @@ def check_inj_008(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
                     remediation="Remove getHostByName calls. Use static hostnames or ConfigMap-based resolution.",
                 ))
     return findings
+
+
+# Filesystem-probing sprig functions
+_FS_SPRIG_FUNCS = {"osBase", "osClean", "osDir", "osExt", "osIsAbs"}
+# Pattern: match function call inside {{ ... }} but not as a substring of another identifier
+_FS_SPRIG_RE = re.compile(
+    r"\{\{[^}]*\b(" + "|".join(_FS_SPRIG_FUNCS) + r")\b[^}]*\}\}"
+)
+
+
+@register_check
+def check_inj_009(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
+    """HLM-INJ-009: Filesystem-probing sprig function in template."""
+    findings = []
+    for tmpl in chart.template_files:
+        for i, line in enumerate(tmpl.content.splitlines(), 1):
+            stripped = line.strip()
+            if stripped.startswith("#"):
+                continue
+            # Strip Go template comments first
+            cleaned_line = _GO_COMMENT_FULL_RE.sub('', line)
+            match = _FS_SPRIG_RE.search(cleaned_line)
+            if match:
+                func_name = match.group(1)
+                findings.append(_finding(
+                    "HLM-INJ-009", "LOW",
+                    f"Filesystem-probing function '{func_name}' in template",
+                    chart.chart_dir, tmpl.path, i,
+                    f"Template uses sprig function '{func_name}' which probes "
+                    f"filesystem paths during rendering. While not directly "
+                    f"exploitable, these functions leak information about the "
+                    f"build host filesystem layout.",
+                    cwe="CWE-200",
+                    remediation=f"Remove '{func_name}' calls. Use static path handling instead.",
+                    extra={"function": func_name},
+                ))
+    return findings

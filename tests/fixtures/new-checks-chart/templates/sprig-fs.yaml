@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: paths
+data:
+  base: {{ osBase .Values.path }}
+  dir: {{ osDir .Values.path }}

@@ -14,8 +14,14 @@ spec:
       labels:
         app: {{ include "clean-chart.name" . }}
     spec:
+      securityContext:
+        runAsNonRoot: true
       containers:
         - name: main
           image: "{{ .Values.image.repository }}"
           ports:
             - containerPort: 8080
+          resources:
+            limits:
+              cpu: 500m
+              memory: 128Mi

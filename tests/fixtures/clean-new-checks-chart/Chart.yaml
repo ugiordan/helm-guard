@@ -1,0 +1,3 @@
+apiVersion: v2
+name: clean-new-checks
+version: 1.0.0

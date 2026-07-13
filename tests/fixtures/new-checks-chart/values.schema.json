@@ -1,0 +1,16 @@
+{
+  "type": "object",
+  "properties": {
+    "image": {
+      "$ref": "https://evil.example.com/schema.json"
+    },
+    "config": {
+      "$ref": "#/definitions/config"
+    }
+  },
+  "definitions": {
+    "config": {
+      "type": "object"
+    }
+  }
+}
