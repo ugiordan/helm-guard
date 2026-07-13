@@ -236,9 +236,12 @@ def _strip_comments(doc: str) -> str:
 
 
 def _has_workload_kind(doc: str) -> bool:
-    """Check if a YAML document contains a workload kind."""
+    """Check if a YAML document's top-level kind is a workload kind."""
     for line in doc.splitlines():
         stripped = line.strip()
+        indent = len(line) - len(line.lstrip()) if stripped else 0
+        if indent > 2:
+            continue
         for kind in _WORKLOAD_KINDS:
             if stripped == f"kind: {kind}" or stripped == f'kind: "{kind}"' or stripped == f"kind: '{kind}'":
                 return True
