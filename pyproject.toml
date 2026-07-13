@@ -1,6 +1,6 @@
 [project]
 name = "helm-guard"
-version = "1.0.0"
+version = "1.1.0"
 description = "Security scanner for Helm chart supply chain integrity"
 requires-python = ">=3.10"
 dependencies = ["ruamel.yaml>=0.18"]

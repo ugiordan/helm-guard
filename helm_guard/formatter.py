@@ -8,6 +8,8 @@ from collections import Counter
 from datetime import datetime, timezone
 from typing import Any
 
+from helm_guard import __version__
+
 
 def _category_from_rule(rule_id: str) -> str:
     parts = rule_id.split("-")
@@ -108,7 +110,7 @@ def format_sarif(findings: list[dict[str, Any]], target: str) -> str:
             "tool": {
                 "driver": {
                     "name": "helm-guard",
-                    "version": "1.0.0",
+                    "version": __version__,
                     "informationUri": "https://github.com/ugiordan/helm-guard",
                     "rules": list(rules_seen.values()),
                 },
