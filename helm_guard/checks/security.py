@@ -419,6 +419,7 @@ def check_sec_010(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
             # Accept runAsNonRoot: true (literal or templated)
             has_run_as_non_root = False
             has_run_as_user_nonzero = False
+            has_templated_security_context = False
             for line in cleaned.splitlines():
                 stripped = line.strip()
                 if "runAsNonRoot:" in stripped:
@@ -428,7 +429,10 @@ def check_sec_010(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
                 run_as_user_match = re.match(r"runAsUser:\s*(\d+)", stripped)
                 if run_as_user_match and run_as_user_match.group(1) != "0":
                     has_run_as_user_nonzero = True
-            if has_run_as_non_root or has_run_as_user_nonzero:
+                # Accept templated securityContext (user controls the setting)
+                if "securityContext:" in stripped and "toYaml" in cleaned:
+                    has_templated_security_context = True
+            if has_run_as_non_root or has_run_as_user_nonzero or has_templated_security_context:
                 continue
             # Find the kind line for reporting
             kind_line = 1
