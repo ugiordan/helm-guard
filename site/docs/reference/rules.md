@@ -1,6 +1,6 @@
 # Rules Reference
 
-helm-guard implements 42 checks across 10 categories. Each check operates at a specific parser tier.
+helm-guard implements 52 checks across 10 categories. Each check operates at a specific parser tier.
 
 ## Parser tiers
 
@@ -53,6 +53,14 @@ helm-guard implements 42 checks across 10 categories. Each check operates at a s
 - **Tier**: 1
 - **Detects**: Chart.yaml `version` field missing or not following strict SemVer format (`MAJOR.MINOR.PATCH`)
 - **Remediation**: Use SemVer format (e.g., `1.2.3`)
+
+### HLM-PIN-006: Mutable image tag in values
+
+- **Severity**: HIGH
+- **CWE**: CWE-829
+- **Tier**: 1
+- **Detects**: Image `tag` keys set to `latest` or empty string in values.yaml when a sibling `repository` key exists. Mutable tags silently change the deployed image, enabling supply chain attacks.
+- **Remediation**: Pin image to a specific version tag or use `@sha256:` digest.
 
 ---
 
@@ -122,6 +130,14 @@ helm-guard implements 42 checks across 10 categories. Each check operates at a s
 - **CVE**: CVE-2023-25165
 - **Detects**: `getHostByName` function calls inside `{{ }}` delimiters. This function performs DNS lookups during template rendering. CVE-2023-25165 demonstrated that an attacker can exfiltrate sensitive chart data (secrets, values) via DNS queries to attacker-controlled nameservers by encoding data in subdomain labels.
 - **Remediation**: Remove `getHostByName` calls. Use static hostnames or ConfigMap-based resolution.
+
+### HLM-INJ-009: Filesystem-probing sprig function in template
+
+- **Severity**: LOW
+- **CWE**: CWE-200
+- **Tier**: 2
+- **Detects**: Template uses sprig functions that probe filesystem paths during rendering (e.g., `fileExists`, `isAbs`, `dir`, `base`, `ext`, `clean`). While not directly exploitable, these functions leak information about the build host filesystem layout.
+- **Remediation**: Remove filesystem-probing function calls. Use static path handling instead.
 
 ---
 
@@ -343,6 +359,71 @@ helm-guard implements 42 checks across 10 categories. Each check operates at a s
 - **Tier**: 1
 - **Detects**: Chart has no `.helmignore` file. When packaged, sensitive files (`.git/`, `.env`, private keys, CI configs) may be included in the chart archive and distributed to users.
 - **Remediation**: Add a `.helmignore` file. See `helm create` for the default template.
+
+### HLM-SEC-007: Wildcard RBAC in templates
+
+- **Severity**: HIGH
+- **CWE**: CWE-250
+- **Tier**: 2
+- **Detects**: Role or ClusterRole rules containing wildcard `*` granting access to all resources, verbs, or apiGroups. This violates the principle of least privilege.
+- **Remediation**: Replace wildcards with specific resources, verbs, and API groups.
+
+### HLM-SEC-008: hostPath volume in templates
+
+- **Severity**: CRITICAL (writable) / HIGH (readOnly)
+- **CWE**: CWE-250
+- **Tier**: 2
+- **Detects**: Template mounts a hostPath volume, giving containers access to host filesystem paths. Writable hostPath mounts enable container escapes. Severity is downgraded if readOnly is set or if inside a conditional block.
+- **Remediation**: Use PersistentVolumeClaims or emptyDir instead. If hostPath is necessary, mount readOnly and restrict the path.
+
+### HLM-SEC-009: Dangerous Linux capabilities in templates
+
+- **Severity**: HIGH / MEDIUM (varies by capability)
+- **CWE**: CWE-250
+- **Tier**: 2
+- **Detects**: Container adds dangerous Linux capabilities (SYS_ADMIN, NET_ADMIN, SYS_PTRACE, DAC_OVERRIDE, etc.) via `securityContext.capabilities.add`. These capabilities grant elevated host access and can be used for container escape.
+- **Remediation**: Remove dangerous capabilities from `capabilities.add`. Use `drop: [ALL]` and add only specific caps needed.
+
+### HLM-SEC-010: Workload without runAsNonRoot
+
+- **Severity**: MEDIUM
+- **CWE**: CWE-250
+- **Tier**: 2
+- **Detects**: Template defines a workload (Deployment, StatefulSet, DaemonSet, Job, CronJob) without setting `runAsNonRoot: true` in securityContext. Containers may run as root, increasing the blast radius of escapes.
+- **Remediation**: Add `securityContext.runAsNonRoot: true` to pod or container spec.
+
+### HLM-SEC-011: Container without resource limits
+
+- **Severity**: LOW
+- **CWE**: CWE-400
+- **Tier**: 2
+- **Detects**: Template defines a workload without any `resources:` block. Without limits, a compromised container can consume all node resources (CPU/memory), causing denial of service.
+- **Remediation**: Add `resources.limits` with CPU and memory constraints.
+
+### HLM-SEC-012: Schema $ref to external resource
+
+- **Severity**: HIGH
+- **CVE**: CVE-2025-55199
+- **CWE**: CWE-400
+- **Tier**: 1
+- **Detects**: `values.schema.json` contains `$ref` pointing to external URLs (`http://`, `https://`) or device paths (`/dev/`). External schema references can be exploited for SSRF or DoS (CVE-2025-55199).
+- **Remediation**: Inline the schema definition or use internal `$ref` (`#/definitions/...`).
+
+### HLM-SEC-013: ArgoCD Application with HTTP source
+
+- **Severity**: MEDIUM
+- **CWE**: CWE-319
+- **Tier**: 2
+- **Detects**: ArgoCD Application resources with `repoURL` using `http://` instead of `https://`. HTTP URLs are vulnerable to man-in-the-middle attacks during chart fetching.
+- **Remediation**: Use HTTPS for all ArgoCD repository URLs.
+
+### HLM-SEC-014: Suspicious chart complexity
+
+- **Severity**: MEDIUM
+- **CWE**: CWE-400
+- **Tier**: 1 + 2
+- **Detects**: Charts with excessive template count (>200 files) or deeply nested subchart hierarchy (>5 levels). Could indicate a decompression bomb or obfuscation attempt.
+- **Remediation**: Review chart contents. Consider splitting into subcharts. Flatten subchart hierarchy.
 
 ---
 

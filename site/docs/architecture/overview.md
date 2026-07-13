@@ -9,14 +9,14 @@ Helm templates contain Go template directives (`{{ }}`, `{{- with }}`, `toYaml |
 - **Files**: Chart.yaml, Chart.lock, values.yaml, values.schema.json
 - **Parser**: `ruamel.yaml` (round-trip mode for line number tracking)
 - **Reliability**: High, no false negatives
-- **Checks**: PIN-001..005, TRUST-001..005, TRUST-007, OLM-001..004, PROV-001, SEC-001..002, SEC-004, SEC-006, DEP-001..004
+- **Checks**: PIN-001..006, TRUST-001..005, TRUST-007, OLM-001..004, PROV-001, SEC-001..002, SEC-004, SEC-006, SEC-012, SEC-014, DEP-001..004
 
 ### Tier 2: Text/regex heuristics
 
 - **Files**: templates/*.yaml, templates/*.tpl
 - **Parser**: Line-by-line text scanning with regex
 - **Reliability**: May miss complex patterns (documented FN rate)
-- **Checks**: INJ-001..008, HOOK-001..003, TRUST-006, SEC-003, SEC-005, NS-002
+- **Checks**: INJ-001..009, HOOK-001..003, TRUST-006, SEC-003, SEC-005, SEC-007..011, SEC-013, SEC-014, NS-002
 - **Limitation**: Cannot determine resolved values (e.g., whether `securityContext.runAsNonRoot` is true after `toYaml`)
 
 ### Tier 3: Rendered output
@@ -37,12 +37,12 @@ helm_guard/
     checks/
         __init__.py     # importlib auto-discovery, run_checks
         _common.py      # @register_check, _finding, severity
-        pinning.py      # HLM-PIN-001..005
-        injection.py    # HLM-INJ-001..008
+        pinning.py      # HLM-PIN-001..006
+        injection.py    # HLM-INJ-001..009
         trust.py        # HLM-TRUST-001..007
         hooks.py        # HLM-HOOK-001..003
         olm.py          # HLM-OLM-001..004
-        security.py     # HLM-SEC-001..006
+        security.py     # HLM-SEC-001..014
         provenance.py   # HLM-PROV-001
         namespace.py    # HLM-NS-001..002
         deps.py         # HLM-DEP-001..004
