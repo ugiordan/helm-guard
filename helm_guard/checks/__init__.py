@@ -1,10 +1,8 @@
-"""Check registry with importlib auto-discovery."""
+"""Check registry with explicit imports (PyInstaller-compatible)."""
 
 from __future__ import annotations
 
-import importlib
 import logging
-from pathlib import Path
 from typing import Any
 
 from helm_guard.config import ScannerConfig
@@ -13,18 +11,18 @@ from helm_guard.checks._common import SEVERITY_ORDER, get_all_checks
 
 logger = logging.getLogger(__name__)
 
-# Auto-import all check modules in this package (excludes __init__.py and _common.py)
-_pkg_dir = Path(__file__).parent
-for _mod_path in sorted(_pkg_dir.glob("*.py")):
-    _mod_name = _mod_path.stem
-    if _mod_name.startswith("_"):
-        continue
-    try:
-        importlib.import_module(f"helm_guard.checks.{_mod_name}")
-    except Exception:
-        logger.error("Failed to import check module: %s", _mod_name, exc_info=True)
+# Explicit imports so PyInstaller bundles all check modules.
+from helm_guard.checks import deps  # noqa: F401
+from helm_guard.checks import hooks  # noqa: F401
+from helm_guard.checks import injection  # noqa: F401
+from helm_guard.checks import namespace  # noqa: F401
+from helm_guard.checks import olm  # noqa: F401
+from helm_guard.checks import pinning  # noqa: F401
+from helm_guard.checks import provenance  # noqa: F401
+from helm_guard.checks import security  # noqa: F401
+from helm_guard.checks import trust  # noqa: F401
 
-_EXPECTED_MIN_CHECKS = 40
+_EXPECTED_MIN_CHECKS = 53
 
 _loaded = get_all_checks()
 if len(_loaded) < _EXPECTED_MIN_CHECKS:
