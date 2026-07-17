@@ -1,4 +1,4 @@
-"""Security checks based on real Helm CVEs and attack techniques (HLM-SEC-001..014)."""
+"""Security checks based on real Helm CVEs and attack techniques (HLM-SEC-001..015)."""
 
 from __future__ import annotations
 
@@ -619,4 +619,57 @@ def check_sec_014(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
                 remediation="Flatten subchart hierarchy. Most charts need at most 2 levels.",
                 extra={"max_depth": max_depth},
             ))
+    return findings
+
+
+_SCAFFOLDING_NAMES = {
+    "controller-manager",
+    "controller-manager-metrics-monitor",
+    "controller-manager-metrics-service",
+    "leader-election-role",
+    "leader-election-rolebinding",
+    "manager-role",
+    "manager-rolebinding",
+    "proxy-role",
+    "proxy-rolebinding",
+    "metrics-reader",
+    "metrics-auth-role",
+    "metrics-auth-rolebinding",
+}
+
+_SCAFFOLDING_NAME_RE = re.compile(
+    r"^\s*name:\s*(" + "|".join(re.escape(n) for n in sorted(_SCAFFOLDING_NAMES)) + r")\s*$"
+)
+
+
+@register_check
+def check_sec_015(chart: ChartInfo, config: ScannerConfig) -> list[dict]:
+    """HLM-SEC-015: Default kubebuilder scaffolding name in templates."""
+    findings = []
+    for tmpl in chart.template_files:
+        for doc, line_offset in _split_yaml_documents(tmpl.content):
+            cleaned = _strip_comments(doc)
+            for i, line in enumerate(cleaned.splitlines(), 1):
+                m = _SCAFFOLDING_NAME_RE.match(line)
+                if not m:
+                    continue
+                scaffold_name = m.group(1)
+                indent = len(line) - len(line.lstrip())
+                if indent > 4:
+                    continue
+                if "{{" in line:
+                    continue
+                findings.append(_finding(
+                    "HLM-SEC-015", "MEDIUM",
+                    "Default scaffolding name in template",
+                    chart.chart_dir, tmpl.path, line_offset + i,
+                    f"Resource uses default kubebuilder/operator-sdk name "
+                    f"'{scaffold_name}'. When multiple operators are deployed "
+                    f"to the same cluster, these generic names collide. "
+                    f"Prefix with the chart or operator name.",
+                    cwe="CWE-694",
+                    remediation=f"Rename to include a chart-specific prefix, "
+                    f"e.g. '{{{{ include \"chart.fullname\" . }}}}-{scaffold_name}'.",
+                    extra={"scaffold_name": scaffold_name},
+                ))
     return findings
