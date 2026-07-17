@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://ugiordan.github.io/helm-guard/</loc>
+         <lastmod>2026-07-17</lastmod>
+    </url>
+    <url>
+         <loc>https://ugiordan.github.io/helm-guard/architecture/overview/</loc>
+         <lastmod>2026-07-17</lastmod>
+    </url>
+    <url>
+         <loc>https://ugiordan.github.io/helm-guard/contributing/setup/</loc>
+         <lastmod>2026-07-17</lastmod>
+    </url>
+    <url>
+         <loc>https://ugiordan.github.io/helm-guard/getting-started/installation/</loc>
+         <lastmod>2026-07-17</lastmod>
+    </url>
+    <url>
+         <loc>https://ugiordan.github.io/helm-guard/getting-started/quickstart/</loc>
+         <lastmod>2026-07-17</lastmod>
+    </url>
+    <url>
+         <loc>https://ugiordan.github.io/helm-guard/guides/configuration/</loc>
+         <lastmod>2026-07-17</lastmod>
+    </url>
+    <url>
+         <loc>https://ugiordan.github.io/helm-guard/reference/cli/</loc>
+         <lastmod>2026-07-17</lastmod>
+    </url>
+    <url>
+         <loc>https://ugiordan.github.io/helm-guard/reference/rules/</loc>
+         <lastmod>2026-07-17</lastmod>
+    </url>
+</urlset>
