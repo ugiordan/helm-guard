@@ -22,7 +22,7 @@ from helm_guard.checks import provenance  # noqa: F401
 from helm_guard.checks import security  # noqa: F401
 from helm_guard.checks import trust  # noqa: F401
 
-_EXPECTED_MIN_CHECKS = 53
+_EXPECTED_MIN_CHECKS = 51
 
 _loaded = get_all_checks()
 if len(_loaded) < _EXPECTED_MIN_CHECKS:

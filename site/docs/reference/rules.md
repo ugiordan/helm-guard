@@ -1,6 +1,6 @@
 # Rules Reference
 
-helm-guard implements 53 checks across 10 categories. Each check operates at a specific parser tier.
+helm-guard implements 51 checks across 10 categories. Each check operates at a specific parser tier.
 
 ## Parser tiers
 
