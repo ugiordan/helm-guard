@@ -1,6 +1,6 @@
 # Rules Reference
 
-helm-guard implements 52 checks across 10 categories. Each check operates at a specific parser tier.
+helm-guard implements 53 checks across 10 categories. Each check operates at a specific parser tier.
 
 ## Parser tiers
 
@@ -424,6 +424,14 @@ helm-guard implements 52 checks across 10 categories. Each check operates at a s
 - **Tier**: 1 + 2
 - **Detects**: Charts with excessive template count (>200 files) or deeply nested subchart hierarchy (>5 levels). Could indicate a decompression bomb or obfuscation attempt.
 - **Remediation**: Review chart contents. Consider splitting into subcharts. Flatten subchart hierarchy.
+
+### HLM-SEC-015: Default kubebuilder scaffolding name in template
+
+- **Severity**: MEDIUM
+- **CWE**: CWE-694
+- **Tier**: 2
+- **Detects**: Templates creating resources with default kubebuilder/operator-sdk scaffolding names (`controller-manager`, `leader-election-role`, `manager-role`, `manager-rolebinding`, `leader-election-rolebinding`, `manager-config`, `manager-metrics-service`). These generic names collide when multiple operators are deployed in the same namespace, causing RBAC failures, leader election conflicts, and service routing errors.
+- **Remediation**: Prefix resource names with a chart-specific identifier using `{{ include "chart.fullname" . }}-` (e.g., `{{ include "chart.fullname" . }}-controller-manager`).
 
 ---
 

@@ -6,7 +6,7 @@
 
 Static security analysis for Helm chart supply chain integrity.
 
-helm-guard uses a three-tier parser (structured YAML, text regex, rendered output) to analyze Helm charts without requiring the helm CLI. It runs 52 checks covering dependency pinning, template injection, values trust, OLM security, and CVE-based risks that rendered-manifest scanners like Checkov and Trivy miss entirely.
+helm-guard uses a three-tier parser (structured YAML, text regex, rendered output) to analyze Helm charts without requiring the helm CLI. It runs 53 checks covering dependency pinning, template injection, values trust, OLM security, and CVE-based risks that rendered-manifest scanners like Checkov and Trivy miss entirely.
 
 **[Documentation](https://ugiordan.github.io/helm-guard/)** | **[Detection Rules Reference](https://ugiordan.github.io/helm-guard/reference/rules/)**
 
@@ -63,12 +63,12 @@ Summary: 1 HIGH, 1 MEDIUM, 1 LOW
 
 ## What It Detects
 
-52 checks across 10 categories:
+53 checks across 10 categories:
 
 - **Injection** (9): tpl function (CRITICAL), lookup, env/expandenv, getHostByName, shell injection, .Files.Get, hardcoded registries, filesystem-probing sprig functions. All backed by real CVEs.
 - **Pinning** (6): SemVer ranges in Chart.yaml, missing Chart.lock, mutable image tags, OLM channels, SemVer compliance, mutable image tags in values
 - **Trust** (7): missing schema, secrets in values, untrusted repos, hostNetwork/hostPID, HTTP URLs, permissive NetworkPolicy, global overrides
-- **Security** (14): path traversal in chart name (CVE-2024-25620), symlinked Chart.lock (CVE-2025-53547), valueFiles traversal (CVE-2022-24348), plugin path traversal (CVE-2026-35204), SA automount, missing .helmignore, wildcard RBAC, hostPath volumes, dangerous capabilities, runAsNonRoot, resource limits, schema $ref (CVE-2025-55199), ArgoCD HTTP, chart complexity
+- **Security** (15): path traversal in chart name (CVE-2024-25620), symlinked Chart.lock (CVE-2025-53547), valueFiles traversal (CVE-2022-24348), plugin path traversal (CVE-2026-35204), SA automount, missing .helmignore, wildcard RBAC, hostPath volumes, dangerous capabilities, runAsNonRoot, resource limits, schema $ref (CVE-2025-55199), ArgoCD HTTP, chart complexity, default scaffolding name collision
 - **OLM** (4): auto-approval without pin, community catalog, privileged namespace, unstable channel + auto-approval
 - **Hooks** (3): hook without securityContext, delete-policy evidence destruction, post-renderer scripts
 - **Dependencies** (4): subchart security overrides, version conflicts, typosquatting, alias hiding

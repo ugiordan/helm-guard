@@ -16,7 +16,7 @@ Helm templates contain Go template directives (`{{ }}`, `{{- with }}`, `toYaml |
 - **Files**: templates/*.yaml, templates/*.tpl
 - **Parser**: Line-by-line text scanning with regex
 - **Reliability**: May miss complex patterns (documented FN rate)
-- **Checks**: INJ-001..009, HOOK-001..003, TRUST-006, SEC-003, SEC-005, SEC-007..011, SEC-013, SEC-014, NS-002
+- **Checks**: INJ-001..009, HOOK-001..003, TRUST-006, SEC-003, SEC-005, SEC-007..011, SEC-013..015, NS-002
 - **Limitation**: Cannot determine resolved values (e.g., whether `securityContext.runAsNonRoot` is true after `toYaml`)
 
 ### Tier 3: Rendered output
@@ -42,7 +42,7 @@ helm_guard/
         trust.py        # HLM-TRUST-001..007
         hooks.py        # HLM-HOOK-001..003
         olm.py          # HLM-OLM-001..004
-        security.py     # HLM-SEC-001..014
+        security.py     # HLM-SEC-001..015
         provenance.py   # HLM-PROV-001
         namespace.py    # HLM-NS-001..002
         deps.py         # HLM-DEP-001..004
