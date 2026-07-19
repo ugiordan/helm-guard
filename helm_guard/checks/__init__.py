@@ -5,13 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from helm_guard.config import ScannerConfig
-from helm_guard.parser import ChartInfo
 from helm_guard.checks._common import SEVERITY_ORDER, get_all_checks
-
-logger = logging.getLogger(__name__)
-
-# Explicit imports so PyInstaller bundles all check modules.
 from helm_guard.checks import deps  # noqa: F401
 from helm_guard.checks import hooks  # noqa: F401
 from helm_guard.checks import injection  # noqa: F401
@@ -21,6 +15,10 @@ from helm_guard.checks import pinning  # noqa: F401
 from helm_guard.checks import provenance  # noqa: F401
 from helm_guard.checks import security  # noqa: F401
 from helm_guard.checks import trust  # noqa: F401
+from helm_guard.config import ScannerConfig
+from helm_guard.parser import ChartInfo
+
+logger = logging.getLogger(__name__)
 
 _EXPECTED_MIN_CHECKS = 51
 
