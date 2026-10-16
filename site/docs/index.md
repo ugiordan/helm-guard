@@ -49,7 +49,7 @@ graph LR
 
 1. **Tier 1 (YAML)** parses Chart.yaml, values.yaml, Chart.lock, values.schema.json with ruamel.yaml
 2. **Tier 2 (Regex)** scans template files as text for injection patterns (tpl, lookup, env)
-3. **37 Security Checks** across 10 categories detect pinning, injection, trust, hooks, OLM, and CVE-based risks
+3. **51 Security Checks** across 9 categories detect pinning, injection, trust, hooks, OLM, and CVE-based risks
 4. **Tier 3 (Render)** optionally runs `helm template` for rendered manifest checks (opt-in via `--render`)
 
 ---
@@ -136,19 +136,19 @@ helm-guard is the only tool that performs **chart-level supply chain analysis**.
 
 ## What Gets Detected
 
-37 checks across 10 categories:
+51 checks across 9 categories:
 
 | Category | Checks | Examples |
 |----------|--------|---------|
-| **Pinning** | HLM-PIN-001..005 | SemVer ranges, Chart.lock, image tags, OLM channels, SemVer compliance |
-| **Injection** | HLM-INJ-001..008 | tpl, lookup, env, getHostByName, shell injection, .Files.Get, hardcoded registries |
-| **Trust** | HLM-TRUST-001..006 | Missing schema, secrets, untrusted repos, hostNetwork, HTTP URLs, NetworkPolicy |
+| **Pinning** | HLM-PIN-001..006 | SemVer ranges, Chart.lock, image tags, OLM channels, SemVer compliance |
+| **Injection** | HLM-INJ-001..009 | tpl, lookup, env, getHostByName, shell injection, .Files.Get, hardcoded registries |
+| **Trust** | HLM-TRUST-001..007 | Missing schema, secrets, untrusted repos, hostNetwork, HTTP URLs, NetworkPolicy |
 | **Hooks** | HLM-HOOK-001..003 | SecurityContext, delete policy, post-renderer scripts |
 | **OLM** | HLM-OLM-001..004 | Auto-approval, community catalog, privileged namespace, unstable channels |
 | **Provenance** | HLM-PROV-001 | Missing chart signature |
 | **Namespace** | HLM-NS-001..002 | Privileged namespace, release namespace schema |
-| **Dependencies** | HLM-DEP-001..003 | Security overrides, version conflicts, typosquatting |
-| **Security** | HLM-SEC-001..005 | Path traversal, symlinked Chart.lock, valueFiles traversal, SA token automount |
+| **Dependencies** | HLM-DEP-001..004 | Security overrides, version conflicts, typosquatting |
+| **Security** | HLM-SEC-001..015 | Path traversal, symlinked Chart.lock, valueFiles traversal, SA token automount |
 
 See [Detection Rules](reference/rules.md) for the full reference.
 

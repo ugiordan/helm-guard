@@ -63,7 +63,7 @@ Summary: 1 HIGH, 1 MEDIUM, 1 LOW
 
 ## What It Detects
 
-51 checks across 10 categories:
+51 checks across 9 categories:
 
 - **Injection** (9): tpl function (CRITICAL), lookup, env/expandenv, getHostByName, shell injection, .Files.Get, hardcoded registries, filesystem-probing sprig functions. All backed by real CVEs.
 - **Pinning** (6): SemVer ranges in Chart.yaml, missing Chart.lock, mutable image tags, OLM channels, SemVer compliance, mutable image tags in values
